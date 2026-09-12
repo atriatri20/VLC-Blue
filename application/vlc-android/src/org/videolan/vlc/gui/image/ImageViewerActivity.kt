@@ -485,9 +485,12 @@ class ImageViewerActivity : BaseActivity() {
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): StripHolder {
             val view = AppCompatImageView(parent.context)
-            view.layoutParams = RecyclerView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-            view.adjustViewBounds = true
+            // fixed cell height: images load asynchronously, a wrap_content cell
+            // would collapse and shift the scroll position back to the top
+            val cellHeight = parent.resources.displayMetrics.heightPixels
+            view.layoutParams = RecyclerView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, cellHeight)
             view.scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
+            view.setBackgroundColor(android.graphics.Color.BLACK)
             return StripHolder(view)
         }
 
