@@ -224,7 +224,7 @@ abstract class BaseBrowserFragment : MediaBrowserFragment<BrowserModel>(), IRefr
                 // nplayer-style: fixed card width, columns adapt to the available width
                 val cardWidthDp = Settings.getInstance(requireActivity()).getInt(BROWSER_CARD_WIDTH, 100).coerceIn(70, 200)
                 val available = if (binding.networkList.width > 0) binding.networkList.width else resources.displayMetrics.widthPixels
-                val cardPx = (cardWidthDp * resources.displayMetrics.density).toInt().coerceAtLeast(1)
+                val cardPx = ((cardWidthDp + 12) * resources.displayMetrics.density).toInt().coerceAtLeast(1) // + margins
                 (available / cardPx).coerceIn(2, 12)
             } else resources.getInteger(R.integer.mobile_card_columns)
             val gridLayoutManager = GridLayoutManager(requireActivity(), nbColumns)
@@ -239,10 +239,10 @@ abstract class BaseBrowserFragment : MediaBrowserFragment<BrowserModel>(), IRefr
                 override fun getItemOffsets(outRect: Rect, view: View, parent: RecyclerView, state: RecyclerView.State) {
                     super.getItemOffsets(outRect, view, parent, state)
                     if (largeCards) {
-                        outRect.top = 14.dp
-                        outRect.bottom = 10.dp
-                        outRect.left = 10.dp
-                        outRect.right = 10.dp
+                        outRect.top = 10.dp
+                        outRect.bottom = 6.dp
+                        outRect.left = 6.dp
+                        outRect.right = 6.dp
                     } else {
                         outRect.top = 8.dp
                         outRect.left = 4.dp
