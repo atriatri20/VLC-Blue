@@ -26,9 +26,12 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
+import android.text.InputType
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
+import android.widget.EditText
+import android.widget.LinearLayout
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -82,6 +85,7 @@ class ImageViewerActivity : BaseActivity() {
     private var overlayVisible = true
     private var decodeWidth = 1080
     private var decodeHeight = 1920
+    private var smbPromptShowing = false
     private lateinit var insetsController: WindowInsetsControllerCompat
 
     override fun getSnackAnchorView(overAudioPlayer: Boolean): View? = binding.root
@@ -220,7 +224,13 @@ class ImageViewerActivity : BaseActivity() {
                 view.setZoomableBitmap(null)
                 view.tag = item.uri
                 lifecycleScope.launch {
-                    val bitmap = withContext(Dispatchers.IO) { getFullBitmap(item) }
+                    var bitmap: Bitmap? = null
+                    try {
+                        bitmap = withContext(Dispatchers.IO) { getFullBitmap(item) }
+                    } catch (e: SmbImageLoader.SmbAuthRequiredException) {
+                        withContext(Dispatchers.Main) { promptSmbCredentials(e.host) }
+                    } catch (ignored: Exception) {
+                    }
                     if (view.tag == item.uri) view.setZoomableBitmap(bitmap)
                     if (bitmap != null) withContext(Dispatchers.IO) { prefetch(position + 1) }
                 }
@@ -235,9 +245,45 @@ class ImageViewerActivity : BaseActivity() {
             val item = items.getOrNull(position) ?: return
             val key = "img_full_${item.uri}_${decodeWidth}x$decodeHeight"
             if (BitmapCache.getBitmapFromMemCache(key) != null) return
-            ImageRepository.decodeSampledBitmap(applicationContext, item.uri, decodeWidth, decodeHeight)?.let {
-                BitmapCache.addBitmapToMemCache(key, it)
+            try {
+                ImageRepository.decodeSampledBitmap(applicationContext, item.uri, decodeWidth, decodeHeight)?.let {
+                    BitmapCache.addBitmapToMemCache(key, it)
+                }
+            } catch (ignored: Exception) {
             }
         }
+    }
+
+    /**
+     * First contact with a password protected share: ask once, store the
+     * credentials globally (thumbnails included) and reload the current page.
+     */
+    private fun promptSmbCredentials(host: String) {
+        if (smbPromptShowing) return
+        smbPromptShowing = true
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            val pad = (16 * resources.displayMetrics.density).toInt()
+            setPadding(pad, pad / 2, pad, 0)
+        }
+        val userEdit = EditText(this).apply { hint = getString(R.string.smb_username); setSingleLine() }
+        val passEdit = EditText(this).apply {
+            hint = getString(R.string.smb_password)
+            setSingleLine()
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+        }
+        layout.addView(userEdit)
+        layout.addView(passEdit)
+        androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle(getString(R.string.smb_login_title, host))
+                .setView(layout)
+                .setPositiveButton(android.R.string.ok) { _, _ ->
+                    smbPromptShowing = false
+                    SmbImageLoader.storeCredential(host, userEdit.text.toString(), passEdit.text.toString())
+                    binding.pager.adapter?.notifyDataSetChanged()
+                }
+                .setNegativeButton(android.R.string.cancel) { _, _ -> smbPromptShowing = false }
+                .setOnCancelListener { smbPromptShowing = false }
+                .show()
     }
 }

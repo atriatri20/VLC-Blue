@@ -1046,6 +1046,9 @@
     <string name="image_browser_empty">No image found</string>
     <string name="image_counter_format">%1$d / %2$d</string>
     <string name="image_share">Share image</string>
+    <string name="smb_login_title">Log in to %1$s</string>
+    <string name="smb_username">Username</string>
+    <string name="smb_password">Password</string>
     <string name="favorites">Favorites</string>
     <string name="new_stream">New stream</string>
     <string name="add_to_group">Add to video group</string>

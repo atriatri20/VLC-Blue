@@ -31,6 +31,7 @@ import org.videolan.medialibrary.media.MediaLibraryItem
 import org.videolan.tools.BitmapCache
 import org.videolan.vlc.R
 import org.videolan.vlc.gui.image.ImageRepository
+import org.videolan.vlc.gui.image.SmbImageLoader
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 
@@ -136,7 +137,13 @@ object BrowserThumbnails {
     }
 
     private fun loadBitmap(context: Context, media: MediaWrapper): Bitmap? {
-        return ImageRepository.decodeSampledBitmap(context.applicationContext, media.uri, THUMB_SIZE, THUMB_SIZE)
+        return try {
+            ImageRepository.decodeSampledBitmap(context.applicationContext, media.uri, THUMB_SIZE, THUMB_SIZE)
+        } catch (e: SmbImageLoader.SmbAuthRequiredException) {
+            // No credentials for this host yet: stay on the plain icon; the
+            // viewer will prompt once and the credentials get stored globally.
+            null
+        }
     }
 
     private fun applyDrawable(container: BrowserItemBindingContainer, bitmap: Bitmap) {

@@ -152,6 +152,8 @@ object ImageRepository {
                     BitmapFactory.decodeFile(path, options)
                 }
             }
+        } catch (e: SmbImageLoader.SmbAuthRequiredException) {
+            throw e
         } catch (ignored: Exception) {
             null
         }
