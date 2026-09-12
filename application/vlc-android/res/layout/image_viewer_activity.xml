@@ -12,6 +12,24 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent" />
 
+        <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/strip"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:visibility="gone" />
+
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/auto_scroll_fab"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom|end"
+                android:layout_margin="24dp"
+                android:contentDescription="@string/auto_scroll"
+                android:src="@drawable/ic_auto_scroll"
+                android:visibility="gone"
+                app:backgroundTint="#CCF28B14"
+                app:tint="@color/white" />
+
         <LinearLayout
                 android:id="@+id/overlay"
                 android:layout_width="match_parent"
@@ -52,6 +70,16 @@
                     android:layout_marginStart="8dp"
                     android:textColor="@color/white"
                     android:textSize="14sp" />
+
+            <ImageView
+                    android:id="@+id/mode_button"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:layout_marginStart="8dp"
+                    android:padding="8dp"
+                    android:contentDescription="@string/viewer_mode"
+                    android:src="@drawable/ic_viewer_mode"
+                    app:tint="@color/white" />
 
             <ImageView
                     android:id="@+id/share_button"
