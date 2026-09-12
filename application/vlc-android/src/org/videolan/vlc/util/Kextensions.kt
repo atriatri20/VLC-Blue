@@ -65,6 +65,7 @@ import org.videolan.vlc.R
 import org.videolan.vlc.gui.SecondaryActivity
 import org.videolan.vlc.gui.browser.KEY_JUMP_TO
 import org.videolan.vlc.gui.browser.KEY_MEDIA
+import org.videolan.vlc.gui.image.ImageRepository
 import java.io.File
 import java.lang.ref.WeakReference
 import java.net.URI
@@ -161,7 +162,7 @@ fun FragmentActivity.share(medias: List<MediaWrapper>) = lifecycleScope.launch {
 }
 
 fun MediaWrapper?.isMedia() = this != null && (type == MediaWrapper.TYPE_AUDIO || type == TYPE_VIDEO)
-fun MediaWrapper?.isBrowserMedia() = this != null && (isMedia() || type == MediaWrapper.TYPE_DIR || type == MediaWrapper.TYPE_PLAYLIST)
+fun MediaWrapper?.isBrowserMedia() = this != null && (isMedia() || type == MediaWrapper.TYPE_DIR || type == MediaWrapper.TYPE_PLAYLIST || ImageRepository.isImageFile(uri?.lastPathSegment))
 fun MediaWrapper.trackNumberText() = if (trackNumber > 0) "$trackNumber." else ""
 
 fun Context.getAppSystemService(name: String) = applicationContext.getSystemService(name)!!

@@ -21,6 +21,7 @@
  */
 package org.videolan.vlc.gui.image
 
+import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
@@ -52,7 +53,26 @@ class ImageViewerActivity : BaseActivity() {
 
     companion object {
         const val EXTRA_POSITION = "extra_position"
+        private const val EXTRA_FOLDER_MODE = "extra_folder_mode"
         private const val DECODE_FACTOR = 1.5f
+
+        /**
+         * Folder listings can be huge, so they travel through this static slot
+         * instead of the intent. Consumed by the next launch of this activity.
+         */
+        private var folderEntries: List<String>? = null
+
+        /**
+         * Viewer over a list of image uris (local paths, file:// or smb:// mrls),
+         * typically every image of the browsed folder: pages scroll vertically
+         * and continuously through the whole list.
+         */
+        fun folderIntent(context: Context, entries: List<String>, startIndex: Int): Intent {
+            folderEntries = entries
+            return Intent(context, ImageViewerActivity::class.java)
+                    .putExtra(EXTRA_POSITION, startIndex)
+                    .putExtra(EXTRA_FOLDER_MODE, true)
+        }
     }
 
     private lateinit var binding: ImageViewerActivityBinding
@@ -91,6 +111,22 @@ class ImageViewerActivity : BaseActivity() {
 
     private fun load() {
         lifecycleScope.launch {
+            if (intent.getBooleanExtra(EXTRA_FOLDER_MODE, false)) {
+                val entries = folderEntries
+                folderEntries = null
+                if (entries != null) {
+                    images = entries.map { entry ->
+                        val uri = Uri.parse(entry)
+                        ImageInfo(-1L, uri,
+                                if (uri.scheme == null || uri.scheme == "file") uri.path else null,
+                                uri.lastPathSegment ?: entry,
+                                0L, 0L, "image/*", null)
+                    }
+                    if (images.isNotEmpty()) setupPager(requestedPosition.coerceIn(0, images.size - 1))
+                    else setupPager(-1)
+                    return@launch
+                }
+            }
             val list = withContext(Dispatchers.IO) {
                 try {
                     ImageRepository.queryImages(applicationContext)
@@ -157,9 +193,9 @@ class ImageViewerActivity : BaseActivity() {
     }
 
     private fun getFullBitmap(info: ImageInfo): Bitmap? {
-        val key = "img_full_${info.id}_${decodeWidth}x$decodeHeight"
+        val key = "img_full_${info.uri}_${decodeWidth}x$decodeHeight"
         BitmapCache.getBitmapFromMemCache(key)?.let { return it }
-        val bitmap = ImageRepository.decodeSampledBitmap(applicationContext, info, decodeWidth, decodeHeight) ?: return null
+        val bitmap = ImageRepository.decodeSampledBitmap(applicationContext, info.uri, decodeWidth, decodeHeight) ?: return null
         BitmapCache.addBitmapToMemCache(key, bitmap)
         return bitmap
     }
@@ -176,17 +212,31 @@ class ImageViewerActivity : BaseActivity() {
         override fun getItemCount() = items.size
 
         override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-            holder.bind(items[position])
+            holder.bind(items[position], position)
         }
 
         inner class ViewHolder(val view: ZoomableImageView) : RecyclerView.ViewHolder(view) {
-            fun bind(item: ImageInfo) {
+            fun bind(item: ImageInfo, position: Int) {
                 view.setZoomableBitmap(null)
-                view.tag = item.id
+                view.tag = item.uri
                 lifecycleScope.launch {
                     val bitmap = withContext(Dispatchers.IO) { getFullBitmap(item) }
-                    if (view.tag == item.id) view.setZoomableBitmap(bitmap)
+                    if (view.tag == item.uri) view.setZoomableBitmap(bitmap)
+                    if (bitmap != null) withContext(Dispatchers.IO) { prefetch(position + 1) }
                 }
+            }
+        }
+
+        /**
+         * Decode the next page ahead of time so vertical swiping feels instant,
+         * especially over slow network shares.
+         */
+        private suspend fun prefetch(position: Int) {
+            val item = items.getOrNull(position) ?: return
+            val key = "img_full_${item.uri}_${decodeWidth}x$decodeHeight"
+            if (BitmapCache.getBitmapFromMemCache(key) != null) return
+            ImageRepository.decodeSampledBitmap(applicationContext, item.uri, decodeWidth, decodeHeight)?.let {
+                BitmapCache.addBitmapToMemCache(key, it)
             }
         }
     }

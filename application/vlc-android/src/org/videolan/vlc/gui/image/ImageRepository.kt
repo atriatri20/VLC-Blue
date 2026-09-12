@@ -31,6 +31,9 @@ import android.os.Parcel
 import android.os.Parcelable
 import android.provider.MediaStore
 import kotlinx.parcelize.Parcelize
+import java.io.ByteArrayOutputStream
+import java.io.InputStream
+import java.util.Locale
 
 /**
  * A single image stored in the device MediaStore
@@ -52,6 +55,19 @@ data class ImageInfo(
  * The medialibrary only indexes audio and video, so images are read directly from MediaStore.
  */
 object ImageRepository {
+
+    const val IMAGE_EXTENSIONS = arrayOf(".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".heic", ".heif", ".avif")
+
+    /** Remote payloads above this size are not downloaded for decoding */
+    private const val MAX_BYTES = 20L * 1024L * 1024L
+
+    fun isImageFile(name: String?): Boolean {
+        if (name == null) return false
+        val lower = name.lowercase(Locale.ENGLISH)
+        val dot = lower.lastIndexOf('.')
+        if (dot < 0) return false
+        return IMAGE_EXTENSIONS.contains(lower.substring(dot))
+    }
 
     fun queryImages(context: Context): List<ImageInfo> {
         val result = ArrayList<ImageInfo>()
@@ -105,6 +121,72 @@ object ImageRepository {
         val options = BitmapFactory.Options()
         options.inSampleSize = computeInSampleSize(bounds, reqWidth, reqHeight)
         return decode(context, info, options)
+    }
+
+    /**
+     * Decodes any image uri: local paths, content providers and smb:// shares
+     * (through the jcifs client). Returns null for unsupported schemes.
+     */
+    fun decodeSampledBitmap(context: Context, uri: Uri, reqWidth: Int, reqHeight: Int): Bitmap? {
+        return try {
+            when (uri.scheme) {
+                "smb" -> decodeBytes(readAll(SmbImageLoader.openStream(uri)), reqWidth, reqHeight)
+                "content" -> {
+                    val bounds = BitmapFactory.Options()
+                    bounds.inJustDecodeBounds = true
+                    context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+                            ?: return null
+                    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+                    val options = BitmapFactory.Options()
+                    options.inSampleSize = computeInSampleSize(bounds, reqWidth, reqHeight)
+                    context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, options) }
+                }
+                else -> {
+                    val path = if (uri.scheme == "file") uri.path ?: uri.toString() else uri.toString()
+                    val bounds = BitmapFactory.Options()
+                    bounds.inJustDecodeBounds = true
+                    BitmapFactory.decodeFile(path, bounds)
+                    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+                    val options = BitmapFactory.Options()
+                    options.inSampleSize = computeInSampleSize(bounds, reqWidth, reqHeight)
+                    BitmapFactory.decodeFile(path, options)
+                }
+            }
+        } catch (ignored: Exception) {
+            null
+        }
+    }
+
+    private fun decodeBytes(bytes: ByteArray?, reqWidth: Int, reqHeight: Int): Bitmap? {
+        if (bytes == null) return null
+        val bounds = BitmapFactory.Options()
+        bounds.inJustDecodeBounds = true
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+        val options = BitmapFactory.Options()
+        options.inSampleSize = computeInSampleSize(bounds, reqWidth, reqHeight)
+        return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
+    }
+
+    private fun readAll(stream: InputStream?): ByteArray? {
+        if (stream == null) return null
+        return try {
+            stream.use {
+                val out = ByteArrayOutputStream()
+                val buffer = ByteArray(64 * 1024)
+                var total = 0L
+                while (true) {
+                    val read = it.read(buffer)
+                    if (read <= 0) break
+                    total += read
+                    if (total > MAX_BYTES) return null
+                    out.write(buffer, 0, read)
+                }
+                out.toByteArray()
+            }
+        } catch (ignored: Exception) {
+            null
+        }
     }
 
     private fun decode(context: Context, info: ImageInfo, options: BitmapFactory.Options): Bitmap? {

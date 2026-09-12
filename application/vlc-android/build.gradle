@@ -209,6 +209,9 @@ dependencies {
     implementation 'com.google.zxing:core:3.4.0'
     implementation "androidx.palette:palette-ktx:1.0.0"
     implementation 'com.jaredrummler:colorpicker:1.1.0'
+    // SMB client used to decode images stored on network shares (smb://)
+    implementation 'org.codelibs:jcifs:2.1.38'
+    implementation 'org.slf4j:slf4j-nop:1.7.36'
 
     // Tests
     androidTestImplementation "androidx.test.espresso:espresso-contrib:$rootProject.espressoVersion"

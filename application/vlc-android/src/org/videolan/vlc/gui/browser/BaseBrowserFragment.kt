@@ -115,6 +115,7 @@ import org.videolan.vlc.gui.helpers.MedialibraryUtils
 import org.videolan.vlc.gui.helpers.UiTools
 import org.videolan.vlc.gui.helpers.UiTools.addToPlaylist
 import org.videolan.vlc.gui.helpers.UiTools.addToPlaylistAsync
+import org.videolan.vlc.gui.image.ImageViewerActivity
 import org.videolan.vlc.gui.helpers.UiTools.showMediaInfo
 import org.videolan.vlc.gui.helpers.hf.OTG_SCHEME
 import org.videolan.vlc.gui.view.EmptyLoadingState
@@ -750,7 +751,17 @@ abstract class BaseBrowserFragment : MediaBrowserFragment<BrowserModel>(), IRefr
         } else {
             mediaWrapper.removeFlags(MediaWrapper.MEDIA_FORCE_AUDIO)
             if (mediaWrapper.type == MediaWrapper.TYPE_DIR) browse(mediaWrapper, true)
-            else {
+            else if (BrowserThumbnails.isImage(mediaWrapper)) {
+                // Pure image browsing: open the vertical viewer on every image of the folder
+                lifecycleScope.launch {
+                    val entries = viewModel.dataset.getList()
+                            .filterIsInstance<MediaWrapper>()
+                            .filter { BrowserThumbnails.isImage(it) }
+                            .map { it.uri.toString() }
+                    val index = entries.indexOfFirst { it == mediaWrapper.uri.toString() }
+                    startActivity(ImageViewerActivity.folderIntent(requireContext(), entries, index.coerceAtLeast(0)))
+                }
+            } else {
                 lifecycleScope.launch {
                     val media = getMediaWithMeta(item).apply {
                         if (Settings.getInstance(requireActivity()).getBoolean(KEY_QUICK_PLAY_DEFAULT, false))

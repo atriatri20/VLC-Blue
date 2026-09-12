@@ -204,6 +204,7 @@ open class BaseBrowserAdapter(val browserContainer: BrowserContainer<MediaLibrar
         vh.bindingContainer.setFileName(if ((sort == Medialibrary.SORT_FILENAME || sort == Medialibrary.SORT_DEFAULT) && media.type != MediaWrapper.TYPE_DIR && "file" == scheme) media.fileName else null)
         if (networkRoot || (isFavorite && getProtocol(media)?.contains("file") == false)) vh.bindingContainer.setProtocol(getProtocol(media))
         vh.bindingContainer.setCover(getIcon(media, specialIcons))
+        BrowserThumbnails.bind(vh.bindingContainer, media)
         vh.selectView(multiSelectHelper.isSelected(position))
         itemFocusChanged(position, false, vh.bindingContainer)
         if (currentMedia == media) {

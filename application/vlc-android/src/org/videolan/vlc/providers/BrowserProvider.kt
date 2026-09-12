@@ -67,6 +67,7 @@ import org.videolan.tools.DependencyProvider
 import org.videolan.tools.Settings
 import org.videolan.tools.livedata.LiveDataset
 import org.videolan.vlc.R
+import org.videolan.vlc.gui.browser.BrowserThumbnails
 import org.videolan.vlc.util.ModelsHelper
 import org.videolan.vlc.util.TextUtils
 import org.videolan.vlc.util.ascComp
@@ -344,6 +345,7 @@ abstract class BrowserProvider(val context: Context, val dataset: LiveDataset<Me
                         } else if (mw is Storage) directories.add(MLServiceLocator.getAbstractMediaWrapper(media))
                     }
                     // all subitems are in
+                    BrowserThumbnails.cacheFolderPreview(context, item, directories + files)
                     getDescription(directories.size, files.size).takeIf { it.isNotEmpty() }?.let {
                         val position = currentParsedPosition
                         withContext(coroutineContextProvider.Main) {
