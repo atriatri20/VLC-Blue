@@ -63,6 +63,9 @@ object BrowserThumbnails {
     private val inflight = ConcurrentHashMap<String, Boolean>()
     private val negatives = ConcurrentHashMap<String, Long>()
 
+    /** folders whose listing has no image but contains videos: folderKey -> first video */
+    private val folderVideoCandidates = ConcurrentHashMap<String, MediaWrapper>()
+
     fun isImage(media: MediaWrapper): Boolean {
         when (media.type) {
             MediaWrapper.TYPE_DIR, MediaWrapper.TYPE_AUDIO, MediaWrapper.TYPE_VIDEO,
@@ -89,13 +92,22 @@ object BrowserThumbnails {
     /**
      * Called from BrowserProvider.parseSubDirectoriesImpl once a folder listing
      * is available: caches the first image found inside as the folder cover.
+     * Folders containing only videos register their first video as a cover
+     * candidate instead; the frame is extracted asynchronously at row bind time.
      */
     fun cacheFolderPreview(context: Context, folder: MediaLibraryItem?, listing: List<MediaLibraryItem>) {
         if (folder !is MediaWrapper) return
         val key = folderKey(folder)
         if (BitmapCache.getBitmapFromMemCache(key) != null || isNegative(key)) return
-        val firstImage = listing.filterIsInstance<MediaWrapper>().firstOrNull { isImage(it) } ?: run {
-            negatives[key] = System.currentTimeMillis()
+        val wrappers = listing.filterIsInstance<MediaWrapper>()
+        val firstImage = wrappers.firstOrNull { isImage(it) }
+        if (firstImage == null) {
+            val firstVideo = wrappers.firstOrNull { it.type == MediaWrapper.TYPE_VIDEO }
+            if (firstVideo == null) {
+                negatives[key] = System.currentTimeMillis()
+            } else {
+                folderVideoCandidates[key] = firstVideo
+            }
             return
         }
         val bitmap = loadBitmap(context, firstImage)
@@ -129,8 +141,32 @@ object BrowserThumbnails {
                 else loadAsync(container, media)
             }
             media.type == MediaWrapper.TYPE_DIR -> {
-                val preview = getCachedFolderPreview(media) ?: return
-                applyDrawable(container, preview)
+                val key = folderKey(media)
+                val preview = getCachedFolderPreview(media)
+                if (preview != null) {
+                    applyDrawable(container, preview)
+                    return
+                }
+                if (isNegative(key)) return
+                // video-only folder: extract the first video's frame as its cover
+                val candidate = folderVideoCandidates[key] ?: return
+                val icon = container.itemIcon
+                icon.setTag(R.id.browser_thumb_key, key)
+                if (inflight.putIfAbsent(key, true) != null) return
+                val executor = if (candidate.uri?.scheme == "smb") networkExecutor else localExecutor
+                executor.execute {
+                    val bitmap = try {
+                        loadVideoBitmap(icon.context, candidate)
+                    } catch (ignored: Exception) {
+                        null
+                    }
+                    if (bitmap != null) BitmapCache.addBitmapToMemCache(key, bitmap)
+                    else negatives[key] = System.currentTimeMillis()
+                    mainHandler.post {
+                        inflight.remove(key)
+                        if (bitmap != null && icon.getTag(R.id.browser_thumb_key) == key) applyDrawable(container, bitmap)
+                    }
+                }
             }
         }
     }
