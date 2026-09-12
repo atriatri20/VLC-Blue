@@ -23,15 +23,22 @@ package org.videolan.vlc.gui.browser
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Paint
 import android.graphics.drawable.BitmapDrawable
+import android.media.MediaMetadataRetriever
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import org.videolan.medialibrary.interfaces.media.MediaWrapper
 import org.videolan.medialibrary.media.MediaLibraryItem
 import org.videolan.tools.BitmapCache
+import org.videolan.tools.Settings
 import org.videolan.vlc.R
 import org.videolan.vlc.gui.image.ImageRepository
 import org.videolan.vlc.gui.image.SmbImageLoader
+import org.videolan.vlc.gui.image.SmbMediaDataSource
+import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 
@@ -67,6 +74,8 @@ object BrowserThumbnails {
     private fun mediaKey(media: MediaWrapper) = "bimg_${media.uri}_${THUMB_W}x$THUMB_H"
 
     private fun folderKey(folder: MediaWrapper) = "bimgdir_${folder.uri}_${THUMB_W}x$THUMB_H"
+
+    private fun videoKey(media: MediaWrapper) = "bvid_${media.uri}_$THUMB_W"
 
     private fun isNegative(key: String): Boolean {
         val since = negatives[key] ?: return false
@@ -113,6 +122,12 @@ object BrowserThumbnails {
                 if (cached != null) applyDrawable(container, cached)
                 else loadAsync(container, media)
             }
+            media.type == MediaWrapper.TYPE_VIDEO -> {
+                if (!Settings.showVideoThumbs || isNegative(videoKey(media))) return
+                val cached = BitmapCache.getBitmapFromMemCache(videoKey(media))
+                if (cached != null) applyDrawable(container, cached)
+                else loadAsync(container, media)
+            }
             media.type == MediaWrapper.TYPE_DIR -> {
                 val preview = getCachedFolderPreview(media) ?: return
                 applyDrawable(container, preview)
@@ -125,11 +140,17 @@ object BrowserThumbnails {
         val key = media.uri?.toString() ?: return
         icon.setTag(R.id.browser_thumb_key, key)
         if (inflight.putIfAbsent(key, true) != null) return
+        val isVideo = media.type == MediaWrapper.TYPE_VIDEO
+        val cacheKey = if (isVideo) videoKey(media) else mediaKey(media)
         val executor = if (media.uri?.scheme == "smb") networkExecutor else localExecutor
         executor.execute {
-            val bitmap = loadBitmap(icon.context, media)
-            if (bitmap != null) BitmapCache.addBitmapToMemCache(mediaKey(media), bitmap)
-            else negatives[mediaKey(media)] = System.currentTimeMillis()
+            val bitmap = try {
+                if (isVideo) loadVideoBitmap(icon.context, media) else loadBitmap(icon.context, media)
+            } catch (e: SmbImageLoader.SmbAuthRequiredException) {
+                null
+            }
+            if (bitmap != null) BitmapCache.addBitmapToMemCache(cacheKey, bitmap)
+            else negatives[cacheKey] = System.currentTimeMillis()
             mainHandler.post {
                 inflight.remove(key)
                 if (bitmap != null && icon.getTag(R.id.browser_thumb_key) == key) applyDrawable(container, bitmap)
@@ -145,6 +166,70 @@ object BrowserThumbnails {
             // viewer will prompt once and the credentials get stored globally.
             null
         }
+    }
+
+    /**
+     * Preview frame for a video, with a duration badge drawn in the corner.
+     * Remote shares are read through the jcifs MediaDataSource bridge.
+     */
+    private fun loadVideoBitmap(context: Context, media: MediaWrapper): Bitmap? {
+        val uri = media.uri ?: return null
+        val retriever = MediaMetadataRetriever()
+        return try {
+            when (uri.scheme) {
+                "smb" -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) retriever.setDataSource(SmbMediaDataSource(uri)) else return null
+                "content" -> retriever.setDataSource(context, uri)
+                else -> retriever.setDataSource(if (uri.scheme == "file") uri.path ?: uri.toString() else uri.toString())
+            }
+            val frame = retriever.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC) ?: return null
+            val durationMs = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
+            withDurationBadge(frame, durationMs)
+        } catch (ignored: Exception) {
+            null
+        } finally {
+            try {
+                retriever.release()
+            } catch (ignored: Exception) {
+            }
+        }
+    }
+
+    private fun withDurationBadge(frame: Bitmap, durationMs: Long): Bitmap {
+        val targetWidth = THUMB_W
+        val scaled = if (frame.width > targetWidth) {
+            val scaledFrame = Bitmap.createScaledBitmap(frame, targetWidth, (frame.height * targetWidth / frame.width).coerceAtLeast(1), true)
+            if (scaledFrame != frame) frame.recycle()
+            scaledFrame
+        } else frame
+        if (durationMs <= 0L) return scaled
+        val result = scaled.copy(Bitmap.Config.ARGB_8888, true)
+        val canvas = Canvas(result)
+        val text = formatDuration(durationMs)
+        val textSize = result.width / 16f
+        val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = android.graphics.Color.WHITE
+            this.textSize = textSize
+            isFakeBoldText = true
+        }
+        val textWidth = textPaint.measureText(text)
+        val metrics = textPaint.fontMetrics
+        val textHeight = metrics.bottom - metrics.top
+        val margin = result.width / 40f
+        val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xB3000000.toInt() }
+        val right = result.width - margin
+        val bottom = result.height - margin
+        canvas.drawRoundRect(right - textWidth - margin, bottom - textHeight - margin, right, bottom, margin / 2, margin / 2, bgPaint)
+        canvas.drawText(text, right - textWidth - margin / 2, bottom - margin / 2 - metrics.bottom, textPaint)
+        return result
+    }
+
+    private fun formatDuration(durationMs: Long): String {
+        val totalSeconds = durationMs / 1000
+        val hours = totalSeconds / 3600
+        val minutes = (totalSeconds % 3600) / 60
+        val seconds = totalSeconds % 60
+        return if (hours > 0) String.format(Locale.ENGLISH, "%d:%02d:%02d", hours, minutes, seconds)
+        else String.format(Locale.ENGLISH, "%d:%02d", minutes, seconds)
     }
 
     private fun applyDrawable(container: BrowserItemBindingContainer, bitmap: Bitmap) {

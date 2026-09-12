@@ -29,6 +29,7 @@ import jcifs.smb.NtlmPasswordAuthenticator
 import jcifs.smb.SmbAuthException
 import jcifs.smb.SmbFile
 import jcifs.smb.SmbFileInputStream
+import jcifs.smb.SmbRandomAccessFile
 import org.videolan.resources.AppContextProvider
 import org.videolan.tools.Settings
 import java.io.InputStream
@@ -85,14 +86,8 @@ object SmbImageLoader {
     fun openStream(uri: Uri): InputStream? {
         val url = buildUrl(uri) ?: return null
         val host = runCatching { uri.host }.getOrNull() ?: return null
-        val contexts = ArrayList<CIFSContext>()
-        val userInfo = runCatching { uri.userInfo }.getOrNull()
-        if (!userInfo.isNullOrBlank()) contexts.add(baseContext.withCredentials(parseAuthenticator(userInfo)))
-        storedCredential(host)?.let { contexts.add(baseContext.withCredentials(it)) }
-        contexts.add(baseContext.withGuestCrendentials())
-        contexts.add(baseContext.withAnonymousCredentials())
         var authFailure = false
-        for (context in contexts) {
+        for (context in credentialContexts(uri, host)) {
             try {
                 return SmbFileInputStream(SmbFile(url, context))
             } catch (e: SmbAuthException) {
@@ -102,6 +97,29 @@ object SmbImageLoader {
         }
         if (authFailure) throw SmbAuthRequiredException(host)
         return null
+    }
+
+    /**
+     * Random access variant used by the video thumbnailer (MediaDataSource)
+     */
+    fun openRandomAccess(uri: Uri): SmbRandomAccessFile? {
+        val url = buildUrl(uri) ?: return null
+        val host = runCatching { uri.host }.getOrNull() ?: return null
+        for (context in credentialContexts(uri, host)) {
+            val file = runCatching { SmbRandomAccessFile(SmbFile(url, context), "r") }.getOrNull() ?: continue
+            return file
+        }
+        return null
+    }
+
+    private fun credentialContexts(uri: Uri, host: String): List<CIFSContext> {
+        val contexts = ArrayList<CIFSContext>()
+        val userInfo = runCatching { uri.userInfo }.getOrNull()
+        if (!userInfo.isNullOrBlank()) contexts.add(baseContext.withCredentials(parseAuthenticator(userInfo)))
+        storedCredential(host)?.let { contexts.add(baseContext.withCredentials(it)) }
+        contexts.add(baseContext.withGuestCrendentials())
+        contexts.add(baseContext.withAnonymousCredentials())
+        return contexts
     }
 
     /**
