@@ -46,7 +46,7 @@ import org.videolan.vlc.gui.BaseActivity
 /**
  * Full screen image viewer. Images are paged vertically: swipe up/down to move
  * to the next or previous image. Pinch zoom, double tap zoom and panning are supported
- * on the current page. Also serves as a VIEW handler for image/* content.
+ * on the current page. Also serves as a VIEW handler for image files opened from other apps.
  */
 class ImageViewerActivity : BaseActivity() {
 

@@ -155,22 +155,25 @@ class ZoomableImageView @JvmOverloads constructor(context: Context, attrs: Attri
      */
     private fun applyZoom(targetScale: Float, focusX: Float, focusY: Float) {
         if (bitmapWidth == 0 || width == 0 || height == 0) return
-        val drawInverse = Matrix(currentDrawMatrix())
-        drawInverse.invert()
+        val drawInverse = inverted(currentDrawMatrix()) ?: return
         val bitmapPoint = floatArrayOf(focusX, focusY)
         drawInverse.mapPoints(bitmapPoint)
         scale = targetScale.coerceIn(MIN_SCALE, MAX_SCALE)
         val centerInverse = Matrix()
         centerInverse.postScale(1f / scale, 1f / scale, width / 2f, height / 2f)
-        val baseInverse = Matrix(baseMatrix)
-        baseInverse.invert()
-        centerInverse.postConcat(baseInverse)
+        val baseInverse = inverted(baseMatrix) ?: return
+        centerInverse.preConcat(baseInverse)
         val focusPoint = floatArrayOf(focusX, focusY)
         centerInverse.mapPoints(focusPoint)
         offsetX = focusPoint[0] - bitmapPoint[0]
         offsetY = focusPoint[1] - bitmapPoint[1]
         clampOffsets()
         applyMatrix()
+    }
+
+    private fun inverted(matrix: Matrix): Matrix? {
+        val result = Matrix()
+        return if (matrix.invert(result)) result else null
     }
 
     private fun zoomTo(targetScale: Float, focusX: Float, focusY: Float, animate: Boolean) {
