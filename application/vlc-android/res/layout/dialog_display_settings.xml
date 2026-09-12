@@ -323,6 +323,99 @@
                     app:layout_constraintTop_toTopOf="@+id/large_cards_group" />
 
             <View
+                    android:id="@+id/card_width_group"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:minHeight="48dp"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintHorizontal_bias="0.0"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@+id/large_cards_group"
+                    app:layout_goneMarginTop="16dp" />
+
+            <ImageView
+                    android:id="@+id/card_width_image"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_marginStart="24dp"
+                    app:layout_constraintBottom_toBottomOf="@+id/card_width_group"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="@+id/card_width_group"
+                    app:srcCompat="@drawable/ic_view_grid" />
+
+            <TextView
+                    android:id="@+id/card_width_text"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="24dp"
+                    android:layout_marginEnd="16dp"
+                    android:text="@string/card_width_title"
+                    android:textColor="?attr/font_default"
+                    android:textSize="16sp"
+                    app:layout_constraintBottom_toBottomOf="@+id/card_width_group"
+                    app:layout_constraintEnd_toEndOf="@+id/card_width_group"
+                    app:layout_constraintStart_toEndOf="@id/card_width_image"
+                    app:layout_constraintTop_toTopOf="@+id/card_width_group" />
+
+            <SeekBar
+                    android:id="@+id/card_width_seek"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="24dp"
+                    android:layout_marginEnd="24dp"
+                    android:layout_marginBottom="8dp"
+                    android:max="7"
+                    app:layout_constraintBottom_toBottomOf="@+id/card_width_group"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toEndOf="@id/card_width_image"
+                    app:layout_constraintTop_toBottomOf="@+id/card_width_text" />
+
+            <View
+                    android:id="@+id/hide_names_group"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:background="?attr/selectableItemBackground"
+                    android:minHeight="48dp"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintHorizontal_bias="0.0"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@+id/card_width_group"
+                    app:layout_goneMarginTop="16dp" />
+
+            <ImageView
+                    android:id="@+id/hide_names_image"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_marginStart="24dp"
+                    app:layout_constraintBottom_toBottomOf="@+id/hide_names_group"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="@+id/hide_names_group"
+                    app:srcCompat="@drawable/ic_hidden" />
+
+            <TextView
+                    android:id="@+id/hide_names_text"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="24dp"
+                    android:layout_marginEnd="16dp"
+                    android:text="@string/hide_names_title"
+                    android:textColor="?attr/font_default"
+                    android:textSize="16sp"
+                    app:layout_constraintBottom_toBottomOf="@+id/hide_names_group"
+                    app:layout_constraintEnd_toStartOf="@+id/hide_names_checkbox"
+                    app:layout_constraintStart_toEndOf="@id/hide_names_image"
+                    app:layout_constraintTop_toTopOf="@+id/hide_names_group" />
+
+            <CheckBox
+                    android:id="@+id/hide_names_checkbox"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="4dp"
+                    app:layout_constraintBottom_toBottomOf="@+id/hide_names_group"
+                    app:layout_constraintEnd_toEndOf="@+id/hide_names_group"
+                    app:layout_constraintTop_toTopOf="@+id/hide_names_group" />
+
+            <View
                     android:id="@+id/only_favs_group"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
@@ -331,7 +424,7 @@
                     app:layout_constraintEnd_toEndOf="parent"
                     app:layout_constraintHorizontal_bias="0.0"
                     app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toBottomOf="@+id/large_cards_group"
+                    app:layout_constraintTop_toBottomOf="@+id/hide_names_group"
                     app:layout_goneMarginTop="16dp" />
 
             <ImageView

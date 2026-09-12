@@ -345,6 +345,8 @@ const val BROWSER_SHOW_HIDDEN_FILES = "browser_show_hidden_files"
 const val BROWSER_SHOW_ONLY_MULTIMEDIA = "browser_show_only_multimedia"
 const val BROWSER_DISPLAY_IN_CARDS = "browser_display_in_cards"
 const val BROWSER_LARGE_CARDS = "browser_large_cards"
+const val BROWSER_CARD_WIDTH = "browser_card_width"
+const val BROWSER_HIDE_NAMES = "browser_hide_names"
 
 // Albums
 const val ALBUMS_SHOW_TRACK_NUMBER = "albums_show_track_number"

@@ -44,6 +44,7 @@ import org.videolan.medialibrary.media.MediaLibraryItem.TYPE_STORAGE
 import org.videolan.medialibrary.media.Storage
 import org.videolan.resources.AndroidDevices
 import org.videolan.resources.UPDATE_SELECTION
+import org.videolan.tools.BROWSER_HIDE_NAMES
 import org.videolan.tools.BROWSER_LARGE_CARDS
 import org.videolan.tools.MultiSelectAdapter
 import org.videolan.tools.MultiSelectHelper
@@ -214,6 +215,7 @@ open class BaseBrowserAdapter(val browserContainer: BrowserContainer<MediaLibrar
         if (networkRoot || (isFavorite && getProtocol(media)?.contains("file") == false)) vh.bindingContainer.setProtocol(getProtocol(media))
         vh.bindingContainer.setCover(getIcon(media, specialIcons))
         BrowserThumbnails.bind(vh.bindingContainer, media)
+        if (isLargeCards()) vh.bindingContainer.setHideText(Settings.getInstance(browserContainer.containerActivity().applicationContext).getBoolean(BROWSER_HIDE_NAMES, false))
         vh.selectView(multiSelectHelper.isSelected(position))
         itemFocusChanged(position, false, vh.bindingContainer)
         if (currentMedia == media) {

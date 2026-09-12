@@ -71,13 +71,20 @@
         <variable
                 name="forceCoverHiding"
                 type="boolean" />
+
+        <variable
+                name="hideText"
+                type="boolean" />
     </data>
 
     <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:id="@+id/browser_container"
-            style="@style/VLCCardView.NoShadow"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="4dp"
+            app:strokeWidth="0dp"
+            app:cardBackgroundColor="?attr/background_default"
             android:contentDescription="@{TalkbackUtil.INSTANCE.getDir(context, item, favorite)}"
             app:mediaContentDescription="@{item}"
             android:longClickable="@{hasContextMenu || item.getItemType() == MediaLibraryItem.TYPE_STORAGE}"
@@ -182,6 +189,7 @@
                     app:asyncText="@{filename ?? item.title}"
                     android:textColor="?attr/list_title"
                     android:textSize="13sp"
+                    android:visibility="@{hideText ? View.GONE : View.VISIBLE}"
                     app:layout_constraintEnd_toEndOf="parent"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toBottomOf="@+id/item_icon" />
@@ -197,7 +205,7 @@
                     app:browserDescription="@{item.description}"
                     android:textColor="?attr/list_subtitle"
                     android:textSize="11sp"
-                    android:visibility="@{TextUtils.isEmpty(item.description) ? View.GONE : View.VISIBLE}"
+                    android:visibility="@{hideText || TextUtils.isEmpty(item.description) ? View.GONE : View.VISIBLE}"
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintEnd_toEndOf="parent"
                     app:layout_constraintStart_toStartOf="parent"

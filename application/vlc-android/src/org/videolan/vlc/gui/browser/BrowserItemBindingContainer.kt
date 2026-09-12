@@ -221,6 +221,10 @@ class BrowserItemBindingContainer(val binding: ViewDataBinding) {
         }
     }
 
+    fun setHideText(hidden: Boolean) {
+        (binding as? CardBrowserItemLargeBinding)?.hideText = hidden
+    }
+
     fun setHolder(holder: BaseBrowserAdapter.ViewHolder<ViewDataBinding>) {
         when (binding) {
             is CardBrowserItemBinding -> binding.holder = holder

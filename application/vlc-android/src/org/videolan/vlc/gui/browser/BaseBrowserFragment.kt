@@ -76,7 +76,9 @@ import org.videolan.resources.MOVIEPEDIA_ACTIVITY
 import org.videolan.resources.MOVIEPEDIA_MEDIA
 import org.videolan.resources.util.getFromMl
 import org.videolan.resources.util.parcelable
+import org.videolan.tools.BROWSER_CARD_WIDTH
 import org.videolan.tools.BROWSER_DISPLAY_IN_CARDS
+import org.videolan.tools.BROWSER_HIDE_NAMES
 import org.videolan.tools.BROWSER_LARGE_CARDS
 import org.videolan.tools.BROWSER_SHOW_HIDDEN_FILES
 import org.videolan.tools.BROWSER_SHOW_ONLY_MULTIMEDIA
@@ -218,7 +220,13 @@ abstract class BaseBrowserFragment : MediaBrowserFragment<BrowserModel>(), IRefr
         }
         if (inCards) {
             val largeCards = Settings.getInstance(requireActivity()).getBoolean(BROWSER_LARGE_CARDS, false)
-            val nbColumns = if (largeCards) 3 else resources.getInteger(R.integer.mobile_card_columns)
+            val nbColumns = if (largeCards) {
+                // nplayer-style: fixed card width, columns adapt to the available width
+                val cardWidthDp = Settings.getInstance(requireActivity()).getInt(BROWSER_CARD_WIDTH, 100).coerceIn(70, 200)
+                val available = if (binding.networkList.width > 0) binding.networkList.width else resources.displayMetrics.widthPixels
+                val cardPx = (cardWidthDp * resources.displayMetrics.density).toInt().coerceAtLeast(1)
+                (available / cardPx).coerceIn(2, 12)
+            } else resources.getInteger(R.integer.mobile_card_columns)
             val gridLayoutManager = GridLayoutManager(requireActivity(), nbColumns)
             gridLayoutManager.spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
                 override fun getSpanSize(position: Int): Int {
@@ -230,9 +238,16 @@ abstract class BaseBrowserFragment : MediaBrowserFragment<BrowserModel>(), IRefr
             binding.networkList.addItemDecoration(object : ItemDecoration() {
                 override fun getItemOffsets(outRect: Rect, view: View, parent: RecyclerView, state: RecyclerView.State) {
                     super.getItemOffsets(outRect, view, parent, state)
-                    outRect.top = 8.dp
-                    outRect.left = 4.dp
-                    outRect.right = 4.dp
+                    if (largeCards) {
+                        outRect.top = 14.dp
+                        outRect.bottom = 10.dp
+                        outRect.left = 10.dp
+                        outRect.right = 10.dp
+                    } else {
+                        outRect.top = 8.dp
+                        outRect.left = 4.dp
+                        outRect.right = 4.dp
+                    }
                 }
             })
         } else {
@@ -346,6 +361,19 @@ abstract class BaseBrowserFragment : MediaBrowserFragment<BrowserModel>(), IRefr
             BROWSER_LARGE_CARDS -> {
                 Settings.getInstance(requireActivity()).putSingle(BROWSER_LARGE_CARDS, value as Boolean)
                 manageDisplay()
+                binding.networkList.recycledViewPool.clear()
+                adapter.notifyDataSetChanged()
+            }
+
+            BROWSER_CARD_WIDTH -> {
+                Settings.getInstance(requireActivity()).edit().putInt(BROWSER_CARD_WIDTH, value as Int).apply()
+                manageDisplay()
+                binding.networkList.recycledViewPool.clear()
+                adapter.notifyDataSetChanged()
+            }
+
+            BROWSER_HIDE_NAMES -> {
+                Settings.getInstance(requireActivity()).putSingle(BROWSER_HIDE_NAMES, value as Boolean)
                 binding.networkList.recycledViewPool.clear()
                 adapter.notifyDataSetChanged()
             }
@@ -697,7 +725,9 @@ abstract class BaseBrowserFragment : MediaBrowserFragment<BrowserModel>(), IRefr
                     showHiddenFiles = settings.getBoolean(BROWSER_SHOW_HIDDEN_FILES, true),
                     defaultPlaybackActions = DefaultPlaybackActionMediaType.FILE.getDefaultPlaybackActions(settings),
                     defaultActionType = getString(R.string.files),
-                    largeCards = settings.getBoolean(BROWSER_LARGE_CARDS, false)
+                    largeCards = settings.getBoolean(BROWSER_LARGE_CARDS, false),
+                    cardWidth = settings.getInt(BROWSER_CARD_WIDTH, 100),
+                    hideNames = settings.getBoolean(BROWSER_HIDE_NAMES, false)
                 )
                     .show(requireActivity().supportFragmentManager, "DisplaySettingsDialog")
                 true
