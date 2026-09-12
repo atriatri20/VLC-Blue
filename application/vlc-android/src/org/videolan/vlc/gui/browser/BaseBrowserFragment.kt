@@ -77,6 +77,7 @@ import org.videolan.resources.MOVIEPEDIA_MEDIA
 import org.videolan.resources.util.getFromMl
 import org.videolan.resources.util.parcelable
 import org.videolan.tools.BROWSER_DISPLAY_IN_CARDS
+import org.videolan.tools.BROWSER_LARGE_CARDS
 import org.videolan.tools.BROWSER_SHOW_HIDDEN_FILES
 import org.videolan.tools.BROWSER_SHOW_ONLY_MULTIMEDIA
 import org.videolan.tools.KEY_QUICK_PLAY
@@ -216,7 +217,8 @@ abstract class BaseBrowserFragment : MediaBrowserFragment<BrowserModel>(), IRefr
             binding.networkList.removeItemDecorationAt(0)
         }
         if (inCards) {
-            val nbColumns = resources.getInteger(R.integer.mobile_card_columns)
+            val largeCards = Settings.getInstance(requireActivity()).getBoolean(BROWSER_LARGE_CARDS, false)
+            val nbColumns = if (largeCards) 3 else resources.getInteger(R.integer.mobile_card_columns)
             val gridLayoutManager = GridLayoutManager(requireActivity(), nbColumns)
             gridLayoutManager.spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
                 override fun getSpanSize(position: Int): Int {
@@ -339,6 +341,13 @@ abstract class BaseBrowserFragment : MediaBrowserFragment<BrowserModel>(), IRefr
             DISPLAY_IN_CARDS -> {
                 Settings.getInstance(requireActivity()).putSingle(BROWSER_DISPLAY_IN_CARDS, value as Boolean)
                 inCards = value
+            }
+
+            BROWSER_LARGE_CARDS -> {
+                Settings.getInstance(requireActivity()).putSingle(BROWSER_LARGE_CARDS, value as Boolean)
+                manageDisplay()
+                binding.networkList.recycledViewPool.clear()
+                adapter.notifyDataSetChanged()
             }
 
             CURRENT_SORT -> {
@@ -687,7 +696,8 @@ abstract class BaseBrowserFragment : MediaBrowserFragment<BrowserModel>(), IRefr
                     showOnlyMultimediaFiles = settings.getBoolean(BROWSER_SHOW_ONLY_MULTIMEDIA, false),
                     showHiddenFiles = settings.getBoolean(BROWSER_SHOW_HIDDEN_FILES, true),
                     defaultPlaybackActions = DefaultPlaybackActionMediaType.FILE.getDefaultPlaybackActions(settings),
-                    defaultActionType = getString(R.string.files)
+                    defaultActionType = getString(R.string.files),
+                    largeCards = settings.getBoolean(BROWSER_LARGE_CARDS, false)
                 )
                     .show(requireActivity().supportFragmentManager, "DisplaySettingsDialog")
                 true

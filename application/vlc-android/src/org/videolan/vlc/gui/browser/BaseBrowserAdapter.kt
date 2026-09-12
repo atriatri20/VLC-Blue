@@ -23,6 +23,9 @@
 package org.videolan.vlc.gui.browser
 
 import android.annotation.TargetApi
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Rect
 import android.graphics.drawable.BitmapDrawable
 import android.os.Build
 import android.view.LayoutInflater
@@ -41,6 +44,7 @@ import org.videolan.medialibrary.media.MediaLibraryItem.TYPE_STORAGE
 import org.videolan.medialibrary.media.Storage
 import org.videolan.resources.AndroidDevices
 import org.videolan.resources.UPDATE_SELECTION
+import org.videolan.tools.BROWSER_LARGE_CARDS
 import org.videolan.tools.MultiSelectAdapter
 import org.videolan.tools.MultiSelectHelper
 import org.videolan.tools.Settings
@@ -48,6 +52,7 @@ import org.videolan.vlc.R
 import org.videolan.vlc.databinding.BrowserItemBinding
 import org.videolan.vlc.databinding.BrowserItemSeparatorBinding
 import org.videolan.vlc.databinding.CardBrowserItemBinding
+import org.videolan.vlc.databinding.CardBrowserItemLargeBinding
 import org.videolan.vlc.gui.DiffUtilAdapter
 import org.videolan.vlc.gui.helpers.*
 import org.videolan.vlc.gui.view.FastScroller
@@ -129,7 +134,11 @@ open class BaseBrowserAdapter(val browserContainer: BrowserContainer<MediaLibrar
         val inflater = LayoutInflater.from(parent.context)
         @Suppress("UNCHECKED_CAST")
         return if (viewType == TYPE_MEDIA || viewType == TYPE_STORAGE)
-            MediaViewHolder(if (browserContainer.inCards) BrowserItemBindingContainer(CardBrowserItemBinding.inflate(inflater, parent, false)) else BrowserItemBindingContainer(BrowserItemBinding.inflate(inflater, parent, false)))
+            MediaViewHolder(when {
+                !browserContainer.inCards -> BrowserItemBindingContainer(BrowserItemBinding.inflate(inflater, parent, false))
+                isLargeCards() -> BrowserItemBindingContainer(CardBrowserItemLargeBinding.inflate(inflater, parent, false))
+                else -> BrowserItemBindingContainer(CardBrowserItemBinding.inflate(inflater, parent, false))
+            })
         else
             SeparatorViewHolder(BrowserItemSeparatorBinding.inflate(inflater, parent, false)) as ViewHolder<ViewDataBinding>
     }
@@ -358,27 +367,50 @@ open class BaseBrowserAdapter(val browserContainer: BrowserContainer<MediaLibrar
     }
 
 
+    private fun isLargeCards() = browserContainer.inCards && Settings.getInstance(browserContainer.containerActivity().applicationContext).getBoolean(BROWSER_LARGE_CARDS, false)
+
+    /**
+     * Center an icon inside a transparent 2:3 canvas, used as the row placeholder
+     * in large cards mode (real covers/thumbnails replace it when loaded)
+     */
+    private fun toLargePlaceholder(source: BitmapDrawable): BitmapDrawable {
+        val width = 320
+        val height = 480
+        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        val iconSize = 150
+        val left = (width - iconSize) / 2
+        val top = (height - iconSize) / 2
+        canvas.drawBitmap(source.bitmap, null, Rect(left, top, left + iconSize, top + iconSize), null)
+        return BitmapDrawable(browserContainer.containerActivity().resources, bitmap)
+    }
+
     fun getIcon(media: MediaWrapper, specialFolders: Boolean): BitmapDrawable {
-        when (media.type) {
-            MediaWrapper.TYPE_AUDIO -> return if (browserContainer.inCards) audioDrawableBig else audioDrawable
+        val drawable = when (media.type) {
+            MediaWrapper.TYPE_AUDIO -> if (browserContainer.inCards) audioDrawableBig else audioDrawable
             MediaWrapper.TYPE_DIR -> {
                 if (specialFolders) {
                     val uri = media.uri
                     if (AndroidDevices.MediaFolders.EXTERNAL_PUBLIC_MOVIES_DIRECTORY_URI == uri || AndroidDevices.MediaFolders.WHATSAPP_VIDEOS_FILE_URI == uri)
-                        return if (browserContainer.inCards) qaMoviesDrawableBig else qaMoviesDrawable
+                        return if (isLargeCards()) toLargePlaceholder(if (browserContainer.inCards) qaMoviesDrawableBig else qaMoviesDrawable)
+                        else if (browserContainer.inCards) qaMoviesDrawableBig else qaMoviesDrawable
                     if (AndroidDevices.MediaFolders.EXTERNAL_PUBLIC_MUSIC_DIRECTORY_URI == uri)
-                        return if (browserContainer.inCards) qaMusicDrawableBig else  qaMusicDrawable
+                        return if (isLargeCards()) toLargePlaceholder(if (browserContainer.inCards) qaMusicDrawableBig else qaMusicDrawable)
+                        else if (browserContainer.inCards) qaMusicDrawableBig else qaMusicDrawable
                     if (AndroidDevices.MediaFolders.EXTERNAL_PUBLIC_PODCAST_DIRECTORY_URI == uri)
-                        return if (browserContainer.inCards) qaPodcastsDrawableBig else  qaPodcastsDrawable
+                        return if (isLargeCards()) toLargePlaceholder(if (browserContainer.inCards) qaPodcastsDrawableBig else qaPodcastsDrawable)
+                        else if (browserContainer.inCards) qaPodcastsDrawableBig else qaPodcastsDrawable
                     if (AndroidDevices.MediaFolders.EXTERNAL_PUBLIC_DOWNLOAD_DIRECTORY_URI == uri)
-                        return if (browserContainer.inCards) qaDownloadDrawableBig else  qaDownloadDrawable
+                        return if (isLargeCards()) toLargePlaceholder(if (browserContainer.inCards) qaDownloadDrawableBig else qaDownloadDrawable)
+                        else if (browserContainer.inCards) qaDownloadDrawableBig else qaDownloadDrawable
                 }
-                return if (browserContainer.inCards) folderDrawableBig else folderDrawable
+                if (browserContainer.inCards) folderDrawableBig else folderDrawable
             }
-            MediaWrapper.TYPE_VIDEO -> return if (browserContainer.inCards) videoDrawableBig else videoDrawable
-            MediaWrapper.TYPE_SUBTITLE -> return  if (browserContainer.inCards) subtitleDrawableBig else subtitleDrawable
-            else -> return unknownDrawable
+            MediaWrapper.TYPE_VIDEO -> if (browserContainer.inCards) videoDrawableBig else videoDrawable
+            MediaWrapper.TYPE_SUBTITLE -> if (browserContainer.inCards) subtitleDrawableBig else subtitleDrawable
+            else -> unknownDrawable
         }
+        return if (isLargeCards()) toLargePlaceholder(drawable) else drawable
     }
 
     private fun getProtocol(media: MediaWrapper): String? {

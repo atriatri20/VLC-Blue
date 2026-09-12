@@ -62,6 +62,7 @@ import org.videolan.vlc.viewmodels.mobile.VideosViewModel
 
 
 const val DISPLAY_IN_CARDS = "display_in_cards"
+const val BROWSER_LARGE_CARDS = "browser_large_cards"
 const val SHOW_ALL_ARTISTS = "show_all_artists"
 const val VIDEO_GROUPING = "show_video_groups"
 const val ONLY_FAVS = "only_favs"
@@ -81,6 +82,7 @@ class DisplaySettingsDialog : VLCBottomSheetDialogFragment() {
 
     //current values
     private var displayInCards: Boolean? = null
+    private var largeCards: Boolean? = null
     private var onlyFavs: Boolean? = null
     private lateinit var sorts: ArrayList<Int>
     private var currentSort: Int = -1
@@ -100,10 +102,11 @@ class DisplaySettingsDialog : VLCBottomSheetDialogFragment() {
 
     companion object {
 
-        fun newInstance(displayInCards: Boolean?, showAllArtists: Boolean? = null, onlyFavs: Boolean?, sorts: List<Int>, currentSort: Int, currentSortDesc: Boolean, videoGroup: String? = null, showOnlyMultimediaFiles:Boolean? = null, showTrackNumber:Boolean? = null, showHiddenFiles:Boolean? = null, defaultPlaybackActions: List<DefaultPlaybackAction>? = null, defaultActionType: String? = null): DisplaySettingsDialog {
+        fun newInstance(displayInCards: Boolean?, showAllArtists: Boolean? = null, onlyFavs: Boolean?, sorts: List<Int>, currentSort: Int, currentSortDesc: Boolean, videoGroup: String? = null, showOnlyMultimediaFiles:Boolean? = null, showTrackNumber:Boolean? = null, showHiddenFiles:Boolean? = null, defaultPlaybackActions: List<DefaultPlaybackAction>? = null, defaultActionType: String? = null, largeCards: Boolean? = null): DisplaySettingsDialog {
             return DisplaySettingsDialog().apply {
                 arguments = bundleOf(SORTS to sorts, CURRENT_SORT to currentSort, CURRENT_SORT_DESC to currentSortDesc, VIDEO_GROUPING to videoGroup)
                 if (displayInCards != null) arguments!!.putBoolean(DISPLAY_IN_CARDS, displayInCards)
+                if (largeCards != null) arguments!!.putBoolean(BROWSER_LARGE_CARDS, largeCards)
                 if (onlyFavs != null) arguments!!.putBoolean(ONLY_FAVS, onlyFavs)
                 if (showAllArtists != null) arguments!!.putBoolean(SHOW_ALL_ARTISTS, showAllArtists)
                 if (showOnlyMultimediaFiles != null) arguments!!.putBoolean(SHOW_ONLY_MULTIMEDIA_FILES, showOnlyMultimediaFiles)
@@ -129,6 +132,7 @@ class DisplaySettingsDialog : VLCBottomSheetDialogFragment() {
         lifecycleScope.launch { if (requireActivity().showPinIfNeeded()) dismiss() }
         super.onCreate(savedInstanceState)
         displayInCards =if (arguments?.containsKey(DISPLAY_IN_CARDS) == true)  arguments?.getBoolean(DISPLAY_IN_CARDS) else null
+        largeCards = if (arguments?.containsKey(BROWSER_LARGE_CARDS) == true) arguments?.getBoolean(BROWSER_LARGE_CARDS) else null
         onlyFavs = if (arguments?.containsKey(ONLY_FAVS) == true) arguments?.getBoolean(ONLY_FAVS) else null
         sorts = arguments?.getIntegerArrayList(SORTS)
                 ?: throw IllegalStateException("Sorts should be provided")
@@ -170,6 +174,7 @@ class DisplaySettingsDialog : VLCBottomSheetDialogFragment() {
 
 
         updateDisplayMode()
+        updateLargeCards()
         updateShowAllArtists()
         updateShowOnlyFavs()
         updateShowAllFiles()
@@ -182,6 +187,14 @@ class DisplaySettingsDialog : VLCBottomSheetDialogFragment() {
             displayInCards = !displayInCards!!
             updateDisplayMode()
             lifecycleScope.launch { displaySettingsViewModel.send(DISPLAY_IN_CARDS, displayInCards!!) }
+        }
+
+        binding.largeCardsGroup.setOnClickListener {
+            binding.largeCardsCheckbox.isChecked = !binding.largeCardsCheckbox.isChecked
+        }
+        binding.largeCardsCheckbox.setOnCheckedChangeListener { _, isChecked ->
+            largeCards = isChecked
+            lifecycleScope.launch { displaySettingsViewModel.send(BROWSER_LARGE_CARDS, largeCards!!) }
         }
         binding.showAllArtistGroup.setOnClickListener {
             binding.showAllArtistCheckbox.isChecked = !binding.showAllArtistCheckbox.isChecked
@@ -304,6 +317,20 @@ class DisplaySettingsDialog : VLCBottomSheetDialogFragment() {
         }
         binding.displayInListText.text = getString(if (displayInCards == false) R.string.display_in_grid else R.string.display_in_list)
         binding.displayInListImage.setImageDrawable(ContextCompat.getDrawable(requireActivity(), if (displayInCards == false) R.drawable.ic_view_grid else R.drawable.ic_view_list))
+    }
+
+    /**
+     * Update the view for the "large thumbnails (2:3)" item
+     */
+    private fun updateLargeCards() {
+        if (largeCards == null) {
+            binding.largeCardsGroup.setGone()
+            binding.largeCardsImage.setGone()
+            binding.largeCardsText.setGone()
+            binding.largeCardsCheckbox.setGone()
+            return
+        }
+        binding.largeCardsCheckbox.isChecked = largeCards!!
     }
 
     /**

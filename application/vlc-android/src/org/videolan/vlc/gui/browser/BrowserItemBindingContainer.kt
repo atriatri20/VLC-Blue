@@ -36,6 +36,7 @@ import org.videolan.tools.PLAYBACK_HISTORY
 import org.videolan.tools.Settings
 import org.videolan.vlc.databinding.BrowserItemBinding
 import org.videolan.vlc.databinding.CardBrowserItemBinding
+import org.videolan.vlc.databinding.CardBrowserItemLargeBinding
 import org.videolan.vlc.gui.helpers.ThreeStatesCheckbox
 import org.videolan.vlc.gui.view.MiniVisualizer
 
@@ -43,14 +44,18 @@ class BrowserItemBindingContainer(val binding: ViewDataBinding) {
     fun setCheckEnabled(enabled: Boolean) {
         when (binding) {
             is CardBrowserItemBinding -> binding.checkEnabled = enabled
+            is CardBrowserItemLargeBinding -> binding.checkEnabled = enabled
             is BrowserItemBinding -> binding.checkEnabled = enabled
-            else -> throw IllegalStateException("Binding should be either a CardBrowserItemBinding or BrowserItemBinding")
+            else -> throw IllegalStateException("Binding should be either a CardBrowserItemBinding, CardBrowserItemLargeBinding or BrowserItemBinding")
         }
     }
 
     fun setCover(value: BitmapDrawable) {
         when (binding) {
             is CardBrowserItemBinding -> {
+                binding.cover = value
+            }
+            is CardBrowserItemLargeBinding -> {
                 binding.cover = value
             }
             is BrowserItemBinding -> {
@@ -62,24 +67,27 @@ class BrowserItemBindingContainer(val binding: ViewDataBinding) {
     fun setProtocol(protocol: String?) {
         when (binding) {
             is CardBrowserItemBinding -> binding.protocol = protocol
+            is CardBrowserItemLargeBinding -> binding.protocol = protocol
             is BrowserItemBinding -> binding.protocol = protocol
-            else -> throw IllegalStateException("Binding should be either a CardBrowserItemBinding or BrowserItemBinding")
+            else -> throw IllegalStateException("Binding should be either a CardBrowserItemBinding, CardBrowserItemLargeBinding or BrowserItemBinding")
         }
     }
 
     fun setFileName(filename: String?) {
         when (binding) {
             is CardBrowserItemBinding -> binding.filename = filename
+            is CardBrowserItemLargeBinding -> binding.filename = filename
             is BrowserItemBinding -> binding.filename = filename
-            else -> throw IllegalStateException("Binding should be either a CardBrowserItemBinding or BrowserItemBinding")
+            else -> throw IllegalStateException("Binding should be either a CardBrowserItemBinding, CardBrowserItemLargeBinding or BrowserItemBinding")
         }
     }
 
     fun setHasContextMenu(hasContextMenu: Boolean) {
         when (binding) {
             is CardBrowserItemBinding -> binding.hasContextMenu = hasContextMenu
+            is CardBrowserItemLargeBinding -> binding.hasContextMenu = hasContextMenu
             is BrowserItemBinding -> binding.hasContextMenu = hasContextMenu
-            else -> throw IllegalStateException("Binding should be either a CardBrowserItemBinding or BrowserItemBinding")
+            else -> throw IllegalStateException("Binding should be either a CardBrowserItemBinding, CardBrowserItemLargeBinding or BrowserItemBinding")
         }
     }
 
@@ -98,16 +106,18 @@ class BrowserItemBindingContainer(val binding: ViewDataBinding) {
     fun setItem(item: MediaLibraryItem) {
         when (binding) {
             is CardBrowserItemBinding -> binding.item = item
+            is CardBrowserItemLargeBinding -> binding.item = item
             is BrowserItemBinding -> binding.item = item
-            else -> throw IllegalStateException("Binding should be either a CardBrowserItemBinding or BrowserItemBinding")
+            else -> throw IllegalStateException("Binding should be either a CardBrowserItemBinding, CardBrowserItemLargeBinding or BrowserItemBinding")
         }
     }
 
     fun setIsFavorite(favorite:Boolean) {
         when (binding) {
             is CardBrowserItemBinding -> binding.favorite = favorite
+            is CardBrowserItemLargeBinding -> binding.favorite = favorite
             is BrowserItemBinding -> binding.favorite = favorite
-            else -> throw IllegalStateException("Binding should be either a CardBrowserItemBinding or BrowserItemBinding")
+            else -> throw IllegalStateException("Binding should be either a CardBrowserItemBinding, CardBrowserItemLargeBinding or BrowserItemBinding")
         }
     }
 
@@ -115,8 +125,9 @@ class BrowserItemBindingContainer(val binding: ViewDataBinding) {
         if (!Settings.getInstance(context).getBoolean(PLAYBACK_HISTORY, true)) return
         when (binding) {
             is CardBrowserItemBinding -> binding.played = played
+            is CardBrowserItemLargeBinding -> binding.played = played
             is BrowserItemBinding -> binding.played = played
-            else -> throw IllegalStateException("Binding should be either a CardBrowserItemBinding or BrowserItemBinding")
+            else -> throw IllegalStateException("Binding should be either a CardBrowserItemBinding, CardBrowserItemLargeBinding or BrowserItemBinding")
         }
     }
     fun setProgress(context: Context, progress: Int, max: Int) {
@@ -126,12 +137,16 @@ class BrowserItemBindingContainer(val binding: ViewDataBinding) {
                 binding.progress = progress
                 binding.max = max
             }
+            is CardBrowserItemLargeBinding -> {
+                binding.progress = progress
+                binding.max = max
+            }
             is BrowserItemBinding -> {
                 binding.progress = progress
                 binding.max = max
             }
 
-            else -> throw IllegalStateException("Binding should be either a CardBrowserItemBinding or BrowserItemBinding")
+            else -> throw IllegalStateException("Binding should be either a CardBrowserItemBinding, CardBrowserItemLargeBinding or BrowserItemBinding")
         }
     }
 
@@ -140,12 +155,14 @@ class BrowserItemBindingContainer(val binding: ViewDataBinding) {
             is CardBrowserItemBinding -> {
                 binding.playing
             }
-
+            is CardBrowserItemLargeBinding -> {
+                binding.playing
+            }
             is BrowserItemBinding -> {
                 binding.playing
             }
 
-            else -> throw IllegalStateException("Binding should be either a CardBrowserItemBinding or BrowserItemBinding")
+            else -> throw IllegalStateException("Binding should be either a CardBrowserItemBinding, CardBrowserItemLargeBinding or BrowserItemBinding")
         }
     }
     fun startVisu() {
@@ -153,12 +170,14 @@ class BrowserItemBindingContainer(val binding: ViewDataBinding) {
             is CardBrowserItemBinding -> {
                 binding.playing.start()
             }
-
+            is CardBrowserItemLargeBinding -> {
+                binding.playing.start()
+            }
             is BrowserItemBinding -> {
                 binding.playing.start()
             }
 
-            else -> throw IllegalStateException("Binding should be either a CardBrowserItemBinding or BrowserItemBinding")
+            else -> throw IllegalStateException("Binding should be either a CardBrowserItemBinding, CardBrowserItemLargeBinding or BrowserItemBinding")
         }
     }
     fun stopVisu() {
@@ -166,28 +185,32 @@ class BrowserItemBindingContainer(val binding: ViewDataBinding) {
             is CardBrowserItemBinding -> {
                 binding.playing.start()
             }
-
+            is CardBrowserItemLargeBinding -> {
+                binding.playing.stop()
+            }
             is BrowserItemBinding -> {
                 binding.playing.stop()
             }
 
-            else -> throw IllegalStateException("Binding should be either a CardBrowserItemBinding or BrowserItemBinding")
+            else -> throw IllegalStateException("Binding should be either a CardBrowserItemBinding, CardBrowserItemLargeBinding or BrowserItemBinding")
         }
     }
-
     fun setVisuVisibility(visible: Int) {
         when (binding) {
             is CardBrowserItemBinding -> {
                 binding.playing.visibility = visible
                 binding.forceCoverHiding = visible == View.VISIBLE
             }
-
+            is CardBrowserItemLargeBinding -> {
+                binding.playing.visibility = visible
+                binding.forceCoverHiding = visible == View.VISIBLE
+            }
             is BrowserItemBinding -> {
                 binding.playing.visibility = visible
                 binding.forceCoverHiding = visible == View.VISIBLE
             }
 
-            else -> throw IllegalStateException("Binding should be either a CardBrowserItemBinding or BrowserItemBinding")
+            else -> throw IllegalStateException("Binding should be either a CardBrowserItemBinding, CardBrowserItemLargeBinding or BrowserItemBinding")
         }
     }
 
@@ -201,16 +224,18 @@ class BrowserItemBindingContainer(val binding: ViewDataBinding) {
     fun setHolder(holder: BaseBrowserAdapter.ViewHolder<ViewDataBinding>) {
         when (binding) {
             is CardBrowserItemBinding -> binding.holder = holder
+            is CardBrowserItemLargeBinding -> binding.holder = holder
             is BrowserItemBinding -> binding.holder = holder
-            else -> throw IllegalStateException("Binding should be either a CardBrowserItemBinding or BrowserItemBinding")
+            else -> throw IllegalStateException("Binding should be either a CardBrowserItemBinding, CardBrowserItemLargeBinding or BrowserItemBinding")
         }
     }
 
     fun setupGrid() {
         when (binding) {
             is CardBrowserItemBinding -> binding.browserContainer.layoutParams.width = ViewGroup.LayoutParams.MATCH_PARENT
+            is CardBrowserItemLargeBinding -> {}
             is BrowserItemBinding -> {}
-            else -> throw IllegalStateException("Binding should be either a CardBrowserItemBinding or BrowserItemBinding")
+            else -> throw IllegalStateException("Binding should be either a CardBrowserItemBinding, CardBrowserItemLargeBinding or BrowserItemBinding")
         }
     }
 
@@ -223,9 +248,18 @@ class BrowserItemBindingContainer(val binding: ViewDataBinding) {
     var moreIcon: ImageView
 
     init {
-        if (binding !is CardBrowserItemBinding && binding !is BrowserItemBinding) throw IllegalStateException("Binding should be either a CardBrowserItemBinding or BrowserItemBinding")
+        if (binding !is CardBrowserItemBinding && binding !is CardBrowserItemLargeBinding && binding !is BrowserItemBinding) throw IllegalStateException("Binding should be either a CardBrowserItemBinding, CardBrowserItemLargeBinding or BrowserItemBinding")
         when (binding) {
             is CardBrowserItemBinding -> {
+                text = binding.text
+                title = binding.title
+                itemIcon = binding.itemIcon
+                browserCheckbox = binding.browserCheckbox
+                moreIcon = binding.itemMore
+                container = binding.browserContainer
+                banIcon = binding.itemBan
+            }
+            is CardBrowserItemLargeBinding -> {
                 text = binding.text
                 title = binding.title
                 itemIcon = binding.itemIcon
@@ -243,7 +277,7 @@ class BrowserItemBindingContainer(val binding: ViewDataBinding) {
                 container = binding.browserContainer
                 banIcon = binding.itemBan
             }
-            else -> throw IllegalStateException("Binding should be either a CardBrowserItemBinding or BrowserItemBinding")
+            else -> throw IllegalStateException("Binding should be either a CardBrowserItemBinding, CardBrowserItemLargeBinding or BrowserItemBinding")
         }
     }
 }

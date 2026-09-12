@@ -46,7 +46,8 @@ import java.util.concurrent.Executors
  */
 object BrowserThumbnails {
 
-    private const val THUMB_SIZE = 128
+    private const val THUMB_W = 320
+    private const val THUMB_H = 480
     private const val NEGATIVE_TTL_MS = 60L * 1000L
 
     private val localExecutor = Executors.newFixedThreadPool(2)
@@ -63,9 +64,9 @@ object BrowserThumbnails {
         return ImageRepository.isImageFile(media.uri?.lastPathSegment)
     }
 
-    private fun mediaKey(media: MediaWrapper) = "bimg_${media.uri}_$THUMB_SIZE"
+    private fun mediaKey(media: MediaWrapper) = "bimg_${media.uri}_${THUMB_W}x$THUMB_H"
 
-    private fun folderKey(folder: MediaWrapper) = "bimgdir_${folder.uri}_$THUMB_SIZE"
+    private fun folderKey(folder: MediaWrapper) = "bimgdir_${folder.uri}_${THUMB_W}x$THUMB_H"
 
     private fun isNegative(key: String): Boolean {
         val since = negatives[key] ?: return false
@@ -138,7 +139,7 @@ object BrowserThumbnails {
 
     private fun loadBitmap(context: Context, media: MediaWrapper): Bitmap? {
         return try {
-            ImageRepository.decodeSampledBitmap(context.applicationContext, media.uri, THUMB_SIZE, THUMB_SIZE)
+            ImageRepository.decodeSampledBitmap(context.applicationContext, media.uri, THUMB_W, THUMB_H)
         } catch (e: SmbImageLoader.SmbAuthRequiredException) {
             // No credentials for this host yet: stay on the plain icon; the
             // viewer will prompt once and the credentials get stored globally.

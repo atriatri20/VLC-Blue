@@ -1023,6 +1023,7 @@
     <string name="auto_scroll">自动滚动</string>
     <string name="auto_scroll_speed">滚动速度</string>
     <string name="auto_scroll_end">已经到底啦</string>
+    <string name="large_cards_title">大尺寸缩略图 (2:3)</string>
     <string name="favorites">收藏</string>
     <string name="new_stream">新建串流</string>
     <string name="add_to_group">添加到视频分组</string>
