@@ -367,7 +367,10 @@ open class BaseBrowserAdapter(val browserContainer: BrowserContainer<MediaLibrar
     }
 
 
-    private fun isLargeCards() = browserContainer.inCards && Settings.getInstance(browserContainer.containerActivity().applicationContext).getBoolean(BROWSER_LARGE_CARDS, false)
+    /** large 2:3 cards only make sense in folder browsing screens with a multi-column grid */
+    var largeCardsAllowed = true
+
+    private fun isLargeCards() = largeCardsAllowed && browserContainer.inCards && Settings.getInstance(browserContainer.containerActivity().applicationContext).getBoolean(BROWSER_LARGE_CARDS, false)
 
     /**
      * Center an icon inside a transparent 2:3 canvas, used as the row placeholder

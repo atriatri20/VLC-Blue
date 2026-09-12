@@ -222,7 +222,7 @@ class MainBrowserFragment : BaseFragment(), View.OnClickListener, CtxActionRecei
         //local
         localEntry = view.findViewById(R.id.local_browser_entry)
         val storageBrowserContainer = MainBrowserContainer(isNetwork = false, isFile = true, inCards = !displayInList)
-        val storageBrowserAdapter = BaseBrowserAdapter(storageBrowserContainer)
+        val storageBrowserAdapter = BaseBrowserAdapter(storageBrowserContainer).apply { largeCardsAllowed = false }
         localEntry.list.adapter = storageBrowserAdapter
         containerAdapterAssociation[storageBrowserContainer] = Pair(storageBrowserAdapter, localViewModel)
         localViewModel.dataset.observe(viewLifecycleOwner) { list ->
@@ -248,7 +248,7 @@ class MainBrowserFragment : BaseFragment(), View.OnClickListener, CtxActionRecei
         favoritesEntry.loading.showNoMedia = false
         favoritesEntry.loading.emptyText = getString(R.string.no_favorite)
         val favoritesBrowserContainer = MainBrowserContainer(isNetwork = false, isFile = true, inCards = !displayInList)
-        val favoritesAdapter = BaseBrowserAdapter(favoritesBrowserContainer)
+        val favoritesAdapter = BaseBrowserAdapter(favoritesBrowserContainer).apply { largeCardsAllowed = false }
         favoritesEntry.list.adapter = favoritesAdapter
         containerAdapterAssociation[favoritesBrowserContainer] = Pair(favoritesAdapter, favoritesViewModel)
         favoritesViewModel.favorites.observe(viewLifecycleOwner) { list ->
@@ -273,7 +273,7 @@ class MainBrowserFragment : BaseFragment(), View.OnClickListener, CtxActionRecei
         networkEntry.loading.showNoMedia = false
         networkEntry.loading.emptyText = getString(R.string.nomedia)
         val networkBrowserContainer = MainBrowserContainer(isNetwork = true, isFile = false, inCards = !displayInList)
-        val networkAdapter = BaseBrowserAdapter(networkBrowserContainer)
+        val networkAdapter = BaseBrowserAdapter(networkBrowserContainer).apply { largeCardsAllowed = false }
         networkEntry.list.adapter = networkAdapter
         containerAdapterAssociation[networkBrowserContainer] = Pair(networkAdapter, networkViewModel)
         networkViewModel.dataset.observe(viewLifecycleOwner) { list ->
