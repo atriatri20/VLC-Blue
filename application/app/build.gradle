@@ -92,6 +92,13 @@ android {
             initWith release
             matchingFallbacks = ['release']
         }
+        // Standalone build variant to install the image-browser mod alongside an existing VLC
+        imageMod {
+            initWith release
+            applicationIdSuffix ".images"
+            matchingFallbacks = ['release']
+            signingConfig = signingConfigs.release
+        }
         debug {
             applicationIdSuffix ".debug"
             jniDebuggable true
@@ -107,6 +114,10 @@ android {
     }
     sourceSets.signedRelease {
         manifest.srcFile 'flavors/release/AndroidManifest.xml'
+    }
+    sourceSets.imageMod {
+        manifest.srcFile 'flavors/imagemod/AndroidManifest.xml'
+        res.srcDirs = ['flavors/imagemod/res']
     }
 
     bundle {
