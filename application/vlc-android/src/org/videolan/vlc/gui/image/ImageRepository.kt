@@ -56,7 +56,7 @@ data class ImageInfo(
  */
 object ImageRepository {
 
-    const val IMAGE_EXTENSIONS = arrayOf(".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".heic", ".heif", ".avif")
+    val IMAGE_EXTENSIONS = arrayOf(".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".heic", ".heif", ".avif")
 
     /** Remote payloads above this size are not downloaded for decoding */
     private const val MAX_BYTES = 20L * 1024L * 1024L
