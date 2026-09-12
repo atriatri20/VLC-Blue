@@ -1,0 +1,168 @@
+/*****************************************************************************
+ * AudioUtil.java
+ *
+ * Copyright © 2011-2012 VLC authors and VideoLAN
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
+ */
+package org.videolan.vlc.gui.helpers
+
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.media.RingtoneManager
+import android.net.Uri
+import android.os.Build
+import android.provider.MediaStore
+import android.util.Log
+import android.webkit.MimeTypeMap
+import android.widget.Toast
+import androidx.annotation.WorkerThread
+import androidx.core.content.contentValuesOf
+import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
+import org.videolan.libvlc.util.AndroidUtil
+import org.videolan.medialibrary.interfaces.media.MediaWrapper
+import org.videolan.tools.BitmapCache
+import org.videolan.tools.HttpImageLoader
+import org.videolan.tools.removeFileScheme
+import org.videolan.vlc.R
+import org.videolan.vlc.gui.helpers.UiTools.snackerConfirm
+import org.videolan.vlc.util.Permissions
+import org.videolan.vlc.util.isSchemeHttpOrHttps
+import java.io.BufferedInputStream
+import java.io.File
+import java.io.FileInputStream
+
+object AudioUtil {
+    const val TAG = "VLC/AudioUtil"
+
+    fun FragmentActivity.setRingtone(song: MediaWrapper) {
+        if (AndroidUtil.isOOrLater && !Permissions.canWriteStorage(this)) {
+            Permissions.askWriteStoragePermission(this, false, Runnable { setRingtone(song) })
+            return
+        }
+        if (!Permissions.canWriteSettings(this)) {
+            Permissions.checkWriteSettingsPermission(this, Permissions.PERMISSION_SYSTEM_RINGTONE)
+            return
+        }
+        lifecycleScope.snackerConfirm(this, getString(R.string.set_song_question, song.title)) {
+            val newRingtone = AndroidUtil.UriToFile(song.uri)
+            if (!withContext(Dispatchers.IO) { newRingtone.exists() }) {
+                Toast.makeText(applicationContext, getString(R.string.ringtone_error), Toast.LENGTH_SHORT).show()
+                return@snackerConfirm
+            }
+
+            val type = MimeTypeMap.getSingleton().getMimeTypeFromExtension(
+                MimeTypeMap.getFileExtensionFromUrl(song.uri.path))
+
+            val values = contentValuesOf(
+                    MediaStore.MediaColumns.TITLE to song.title,
+                    MediaStore.MediaColumns.MIME_TYPE to type,
+                    MediaStore.Audio.Media.ARTIST to song.artistName,
+                    MediaStore.Audio.Media.IS_RINGTONE to true,
+                    MediaStore.Audio.Media.IS_NOTIFICATION to false,
+                    MediaStore.Audio.Media.IS_ALARM to false,
+                    MediaStore.Audio.Media.IS_MUSIC to false
+            )
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    val newUri: Uri = this.contentResolver
+                            .insert(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, values)!!
+                    contentResolver.openOutputStream(newUri).use { os ->
+                        val runtime = Runtime.getRuntime()
+                        val availHeapSizeInMB = runtime.maxMemory() - runtime.totalMemory() - runtime.freeMemory()
+                        val size = newRingtone.length().toInt()
+                        if (size > availHeapSizeInMB * 0.8F) throw IllegalStateException("Not enough memory")
+                        val bytes = ByteArray(size)
+                        val buf = BufferedInputStream(FileInputStream(newRingtone))
+                        buf.read(bytes, 0, bytes.size)
+                        buf.close()
+                        os!!.write(bytes)
+                        os.close()
+                        os.flush()
+                    }
+                    RingtoneManager.setActualDefaultRingtoneUri(this, RingtoneManager.TYPE_RINGTONE,
+                            newUri)
+                } else {
+                    values.put(MediaStore.Audio.Media.DATA, newRingtone.absolutePath)
+
+                    val uri = withContext(Dispatchers.IO) {
+                        MediaStore.Audio.Media.getContentUriForPath(newRingtone.absolutePath)?.let { tmpUri ->
+                            contentResolver.delete(tmpUri, MediaStore.MediaColumns.DATA + "=\"" + newRingtone.absolutePath + "\"", null)
+                            contentResolver.insert(tmpUri, values)
+                        }
+                    }
+                    RingtoneManager.setActualDefaultRingtoneUri(
+                            applicationContext,
+                            RingtoneManager.TYPE_RINGTONE,
+                            uri
+                    )
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "error setting ringtone", e)
+                Toast.makeText(applicationContext,
+                        getString(R.string.ringtone_error),
+                        Toast.LENGTH_SHORT).show()
+                return@snackerConfirm
+            }
+            Toast.makeText(
+                            applicationContext,
+                            getString(R.string.ringtone_set, song.title),
+                            Toast.LENGTH_SHORT)
+                    .show()
+        }
+    }
+
+    //TODO Make it a suspend function to get rid of runBlocking {... }
+    @WorkerThread
+    fun readCoverBitmap(requestedPath: String?, width: Int): Bitmap? {
+        val path = requestedPath ?: return null
+        if (isSchemeHttpOrHttps(path)) return runBlocking(Dispatchers.Main) {
+            HttpImageLoader.downloadBitmap(path)
+        }
+        return BitmapCache.getBitmapFromMemCache(path.removeFileScheme() + "_$width") ?: fetchCoverBitmap(path, width)
+    }
+
+    @WorkerThread
+    fun fetchCoverBitmap(requestedPath: String, width: Int): Bitmap? {
+        val path = requestedPath.removeFileScheme()
+        if (path.isEmpty() || !File(path).exists()) return null
+        var cover: Bitmap? = null
+        val options = BitmapFactory.Options()
+
+        /* Get the resolution of the bitmap without allocating the memory */
+        options.inJustDecodeBounds = true
+        BitmapFactory.decodeFile(path, options)
+
+        if (options.outWidth > 0 && options.outHeight > 0) {
+            options.inJustDecodeBounds = false
+            options.inSampleSize = 1
+
+            // Find the best decoding scale for the bitmap
+            if (width > 0) {
+                while (options.outWidth / (options.inSampleSize + 1) > width)
+                    options.inSampleSize = options.inSampleSize * 2
+            }
+
+            // Decode the file (with memory allocation this time)
+            cover = BitmapFactory.decodeFile(path, options)
+            BitmapCache.addBitmapToMemCache(path.removeFileScheme() + "_$width", cover)
+        }
+        return cover
+    }
+}

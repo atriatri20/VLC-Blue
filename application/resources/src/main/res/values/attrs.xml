@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+  ~ *************************************************************************
+  ~  attrs.xml
+  ~ **************************************************************************
+  ~ Copyright © 2020 VLC authors and VideoLAN
+  ~ Author: Nicolas POMEPUY
+  ~ This program is free software; you can redistribute it and/or modify
+  ~ it under the terms of the GNU General Public License as published by
+  ~ the Free Software Foundation; either version 2 of the License, or
+  ~ (at your option) any later version.
+  ~
+  ~ This program is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ~ GNU General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU General Public License
+  ~ along with this program; if not, write to the Free Software
+  ~ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
+  ~ ***************************************************************************
+  ~
+  ~
+  -->
+
+<resources>
+
+    <attr name="background_default" format="reference|color" />
+    <attr name="header_background" format="reference|color" />
+    <attr name="bottom_navigation_background" format="reference|color" />
+    <attr name="audio_header_background" format="reference|color" />
+    <attr name="audio_header_divider" format="color" />
+    <attr name="default_divider" format="color" />
+    <attr name="subtle_selection" format="color" />
+    <attr name="audio_menu_icon" format="color" />
+    <attr name="audio_list_background" format="reference|color" />
+    <attr name="bottom_sheet_background" format="reference|color" />
+    <attr name="bottom_sheet_radius" format="dimension" />
+    <attr name="bottom_navigation_color" format="reference|color" />
+    <attr name="background_default_darker" format="reference|color" />
+    <attr name="background_actionbar" format="reference|color" />
+    <attr name="background_audio_tips" format="reference|color" />
+    <attr name="font_default" format="reference|color" />
+    <attr name="font_audio_light" format="reference|color" />
+    <attr name="font_light" format="reference|color" />
+    <attr name="font_disabled" format="reference|color" />
+    <attr name="audio_browser_separator" format="reference|color" />
+    <attr name="list_subtitle" format="reference|color" />
+    <attr name="list_title" format="reference|color" />
+    <attr name="audio_player_background_tint" format="reference|color" />
+    <attr name="ariane_text_color" format="reference|color"/>
+    <attr name="ariane_text_size" format="dimension" />
+    <attr name="card_background" format="color"/>
+    <attr name="empty_button" format="reference" />
+    <attr name="default_separator" format="color" />
+    <attr name="card_border" format="color" />
+    <attr name="donate_card" format="color" />
+    <attr name="donate_item_background" format="reference" />
+    <attr name="empty_foreground" format="color" />
+    <attr name="empty_background" format="color" />
+    <attr name="disabled_overlay_color" format="color" />
+    <attr name="video_card_background" format="reference"/>
+    <attr name="video_list_background" format="reference"/>
+    <attr name="audio_chip_background" format="color" />
+    <attr name="audio_chip_text_color" format="color" />
+    <attr name="audio_seek_bar" format="reference" />
+    <attr name="mini_visualizer_color" format="color" />
+    <attr name="round_background" format="reference" />
+    <attr name="audio_chips_color" format="color" />
+    <attr name="audio_chips_text_color" format="color" />
+    <attr name="bookmark_background" format="color" />
+    <attr name="bottom_navigation_focus" format="color" />
+    <attr name="primary_focus" format="color" />
+    <attr name="scan_background" format="reference" />
+    <attr name="otp_code_background" format="reference" />
+    <attr name="fast_scroller_bubble" format="reference" />
+    <attr name="fast_scroller_handle" format="reference" />
+    <attr name="empty_title" format="color" />
+    <attr name="audio_player_gradient_bottom" format="reference" />
+    <attr name="audio_player_gradient_top" format="reference" />
+    <attr name="tips_item_background" format="color" />
+    <attr name="about_text_primary" format="color" />
+    <attr name="widget_preview_rounded_bg" format="reference" />
+    <attr name="swipe_refresh_background" format="reference|color" />
+    <attr name="dialogButtonStyle" format="reference" />
+    <attr name="permission_explanation_background" format="color" />
+
+    <!--Main Icons-->
+    <attr name="gridview_progressbar" format="reference" />
+    <attr name="toolbar_popup_style" format="reference" />
+    <attr name="progress_mini_player" format="reference" />
+
+    <!--Advance Options Icons-->
+    <attr name="ic_passthrough" format="reference" />
+    <attr name="player_icon_color" format="reference" />
+    <attr name="dialog_circle_background" format="reference"/>
+    <attr name="ic_tips_double_tap" format="reference"/>
+    <attr name="ic_tips_tap" format="reference"/>
+
+
+    <attr name="advanced_options_bg" format="reference"/>
+
+    <declare-styleable name="MiniVisualizer">
+        <attr name="bar_color" format="reference"/>
+    </declare-styleable>
+    <declare-styleable name="EmptyLoadingStateView">
+        <attr name="empty_text" format="reference|string" />
+        <attr name="show_no_media" format="boolean" />
+        <attr name="compact_mode" format="boolean" />
+    </declare-styleable>
+    <declare-styleable name="TitleListView">
+        <attr name="title" format="reference|string" />
+        <attr name="show_button" format="boolean" />
+        <attr name="button_icon" format="reference" />
+    </declare-styleable>
+
+    <declare-styleable name="HalfCircleView">
+        <attr name="is_left" format="boolean"/>
+    </declare-styleable>
+
+</resources>

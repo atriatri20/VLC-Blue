@@ -1,0 +1,262 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layout xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:app="http://schemas.android.com/apk/res-auto"
+        xmlns:tools="http://schemas.android.com/tools">
+
+    <data>
+
+    </data>
+
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/hud_right_overlay"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@color/transparent"
+            android:paddingBottom="8dp"
+            android:visibility="invisible"
+            tools:visibility="visible">
+
+        <TextClock
+            android:id="@+id/clock"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:layout_marginEnd="16dp"
+            android:textSize="18sp"
+            android:shadowColor="@color/blacktransparent"
+            android:shadowDx="0"
+            android:shadowDy="2"
+            android:shadowRadius="11"
+            app:layout_constraintRight_toRightOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:text="88:88AM" />
+
+        <ImageView
+                android:id="@+id/player_overlay_navmenu"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_marginTop="8dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:focusable="true"
+                android:padding="6dp"
+                android:visibility="gone"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:srcCompat="@drawable/ic_player_navmenu"
+                tools:visibility="visible" />
+
+
+        <ImageView
+                android:id="@+id/player_screenshot"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_marginTop="8dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:focusable="true"
+                android:padding="6dp"
+                android:visibility="gone"
+                app:layout_constraintStart_toEndOf="@+id/player_overlay_navmenu"
+                app:layout_constraintTop_toTopOf="parent"
+                app:srcCompat="@drawable/ic_player_screenshot"
+                tools:visibility="visible" />
+
+        <TextView
+                android:id="@+id/player_overlay_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="136dp"
+                android:layout_marginTop="8dp"
+                android:layout_marginEnd="136dp"
+                android:ellipsize="end"
+                android:fontFamily="sans-serif-light"
+                android:gravity="center"
+                android:maxLines="2"
+                android:paddingBottom="4dp"
+                android:shadowColor="@color/blacktransparent"
+                android:shadowDx="0"
+                android:shadowDy="2"
+                android:shadowRadius="11"
+                android:textAlignment="center"
+                android:textColor="@color/white"
+                android:textSize="22sp"
+                app:layout_constrainedWidth="true"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                tools:text="Game of Thrones S01-E01" />
+
+        <TextView
+                android:id="@+id/player_overlay_title_warning"
+                android:layout_width="wrap_content"
+                android:layout_height="48dp"
+                android:layout_marginTop="8dp"
+                android:background="?attr/selectableItemBackground"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:drawablePadding="16dp"
+                android:ellipsize="end"
+                android:fontFamily="sans-serif-light"
+                android:gravity="center"
+                android:maxLines="2"
+                android:paddingBottom="4dp"
+                android:shadowColor="@color/blacktransparent"
+                android:shadowDx="0"
+                android:shadowDy="2"
+                android:shadowRadius="11"
+                android:text="@string/unknown"
+                android:textAlignment="center"
+                android:textColor="@color/white"
+                android:textSize="22sp"
+                app:drawableStartCompat="@drawable/ic_warning_small"
+                app:layout_constrainedWidth="true"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+        <ImageView
+            android:id="@+id/playlist_toggle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:layout_marginTop="8dp"
+            android:layout_marginEnd="16dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/show_playlist"
+            android:focusable="true"
+            android:padding="6dp"
+            android:visibility="gone"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintEnd_toStartOf="@+id/clock"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintVertical_chainStyle="packed"
+            app:srcCompat="@drawable/ic_player_playqueue"
+            tools:visibility="visible" />
+
+        <ImageView
+                android:id="@+id/video_secondary_display"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical"
+                android:layout_marginTop="8dp"
+                android:layout_marginEnd="16dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/video_remote_enable"
+                android:focusable="true"
+                android:onClick="onClick"
+                android:padding="6dp"
+                android:visibility="gone"
+                app:layout_constraintEnd_toStartOf="@+id/video_renderer"
+                app:layout_constraintTop_toTopOf="parent"
+                app:srcCompat="@drawable/ic_player_screenshare"
+                tools:visibility="visible" />
+
+        <ImageView
+                android:id="@+id/video_renderer"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical"
+                android:layout_marginTop="8dp"
+                android:layout_marginEnd="16dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/renderer_list_title"
+                android:focusable="true"
+                android:padding="6dp"
+                android:visibility="gone"
+                app:layout_constraintEnd_toStartOf="@+id/playlist_toggle"
+                app:layout_constraintTop_toTopOf="parent"
+                app:srcCompat="@drawable/ic_player_renderer"
+                tools:visibility="visible" />
+
+        <HorizontalScrollView
+                android:id="@+id/quick_actions_container"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:scrollbars="none"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/player_overlay_title">
+
+            <com.google.android.material.chip.ChipGroup
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:clipToPadding="false"
+                    android:paddingLeft="16dp"
+                    android:paddingRight="16dp"
+                    app:chipSpacing="16dp">
+
+                <com.google.android.material.chip.Chip
+                        android:id="@+id/orientation_quick_action"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        app:textStartPadding="0dp"
+                        app:textEndPadding="0dp"
+                        app:chipStartPadding="4dp"
+                        app:chipEndPadding="4dp"
+                        android:padding="4dp"
+                        app:iconStartPadding="4dp"
+                        app:iconEndPadding="4dp"
+                        android:onClick="onClick"
+                        app:chipBackgroundColor="@color/playerbackground"
+                        app:chipIcon="@drawable/ic_player_lock_portrait"
+                        app:chipIconTint="@color/white"/>
+                <com.google.android.material.chip.Chip
+                        android:id="@+id/playback_speed_quick_action"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:onClick="onClick"
+                        app:chipBackgroundColor="@color/playerbackground"
+                        app:chipIcon="@drawable/ic_speed"
+                        app:chipIconTint="@color/white"
+                        app:iconStartPadding="8dp"
+                        tools:text="1.25x" />
+
+                <com.google.android.material.chip.Chip
+                        android:id="@+id/sleep_quick_action"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:onClick="onClick"
+                        app:chipBackgroundColor="@color/playerbackground"
+                        app:chipIcon="@drawable/ic_sleep"
+                        app:chipIconTint="@color/white"
+                        app:iconStartPadding="8dp"
+                        tools:text="12h55AM" />
+
+                <com.google.android.material.chip.Chip
+                        android:id="@+id/spu_delay_quick_action"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:onClick="onClick"
+                        app:chipBackgroundColor="@color/playerbackground"
+                        app:chipIcon="@drawable/ic_subtitles"
+                        app:chipIconTint="@color/white"
+                        app:iconStartPadding="8dp"
+                        tools:text="+3000ms" />
+
+                <com.google.android.material.chip.Chip
+                        android:id="@+id/audio_delay_quick_action"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:onClick="onClick"
+                        app:chipBackgroundColor="@color/playerbackground"
+                        app:chipIcon="@drawable/ic_player_volume"
+                        app:chipIconTint="@color/white"
+                        app:iconStartPadding="8dp"
+                        tools:text="-2000ms" />
+            </com.google.android.material.chip.ChipGroup>
+        </HorizontalScrollView>
+
+        <androidx.constraintlayout.widget.Barrier
+                android:id="@+id/icon_barrier"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:barrierDirection="bottom"
+                app:constraint_referenced_ids="playlist_toggle,video_renderer,player_overlay_navmenu,video_secondary_display"/>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- Media control buttons -->
+</layout>

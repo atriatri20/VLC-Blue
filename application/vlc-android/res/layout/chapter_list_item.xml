@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layout xmlns:app="http://schemas.android.com/apk/res-auto"
+        xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <data>
+
+        <variable
+                name="selected"
+                type="Boolean" />
+
+        <variable
+                name="chapter"
+                type="org.videolan.vlc.gui.dialogs.SelectChapterDialog.Chapter" />
+
+        <variable
+                name="holder"
+                type="org.videolan.vlc.gui.dialogs.SelectChapterDialog.ChapterViewHolder" />
+
+    </data>
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:background="@drawable/background_chapter_item"
+            android:focusable="true"
+            android:onClick="@{holder::onClick}"
+            android:orientation="vertical"
+            android:selected="@{selected}">
+
+        <TextView
+                android:id="@+id/chapterTitle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="16dp"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:text="@{chapter.name}"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@+id/chapter_time"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:selected="@{selected}" />
+
+        <TextView
+                android:id="@+id/chapter_time"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentRight="true"
+                android:layout_marginEnd="8dp"
+                android:text="@{chapter.time}"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</layout>

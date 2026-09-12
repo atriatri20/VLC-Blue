@@ -1,0 +1,131 @@
+/*
+ * ************************************************************************
+ *  RemoteAccessOTP.kt
+ * *************************************************************************
+ * Copyright © 2025 VLC authors and VideoLAN
+ * Author: Nicolas POMEPUY
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
+ * **************************************************************************
+ *
+ *
+ */
+
+package org.videolan.vlc.remoteaccessserver
+
+import android.content.Context
+import androidx.core.app.NotificationManagerCompat
+import org.videolan.resources.NotificationIds
+import org.videolan.vlc.gui.helpers.NotificationHelper
+import org.videolan.vlc.remoteaccessserver.ssl.SecretGenerator
+import org.videolan.vlc.remoteaccessserver.utils.CypherUtils
+import org.videolan.vlc.util.RemoteAccessUtils
+import java.security.SecureRandom
+
+
+object RemoteAccessOTP {
+
+    private val codes = ArrayList<OTPCode>()
+    private val secureRandom = SecureRandom()
+
+    /**
+     * generate an [OTPCode] and store it in memory for later use
+     *
+     * @return the generate [OTPCode]
+     */
+    private fun generateOTPCode(): OTPCode {
+        val code = generateCode()
+        val otpCode = OTPCode(code, SecretGenerator.generateRandomString(), System.currentTimeMillis() + 60000)
+        codes.add(otpCode)
+        return otpCode
+    }
+
+    fun generateCode(): String = (secureRandom.nextInt(900000) + 100000).toString()
+
+    /**
+     * Verify if the code is valid by using the challenge
+     *
+     * @param appContext the app context used to cancel the notification
+     * @param saltedCode the sha256 of the code + challenge to verify
+     * @return true if the code is valid
+     */
+    fun verifyCode(appContext: Context, saltedCode: String): Boolean {
+        codes.forEach {
+            if (CypherUtils.hash(it.code + it.challenge) == saltedCode && System.currentTimeMillis() < it.expiration) {
+                with(NotificationManagerCompat.from(appContext)) {
+                    cancel(NotificationIds.REMOTE_ACCESS_OTP.id)
+                }
+                codes.remove(it)
+                return true
+            }
+        }
+        return false
+    }
+
+    /**
+     * Get the first code that is still valid
+     *
+     * @param appContext the app context used to manage the notification
+     * @return the first valid code or a new one if none is found
+     */
+    fun getFirstValidCode(appContext: Context): OTPCode {
+        val toRemove = ArrayList<Int>()
+        codes.forEachIndexed() { index, code ->
+            if (System.currentTimeMillis() < code.expiration) {
+                return code
+            } else toRemove.add(index)
+        }
+        toRemove.sortDescending()
+        toRemove.forEach {
+            codes.removeAt(it)
+        }
+        val code = generateOTPCode()
+        val notification = NotificationHelper.createRemoteAccessOtpNotification(appContext, code.code)
+        with(NotificationManagerCompat.from(appContext)) {
+            notify(NotificationIds.REMOTE_ACCESS_OTP.id, notification)
+        }
+        return code
+    }
+
+    /**
+     * Remove the code corresponding to the challenge
+     *
+     * @param challenge
+     */
+    fun removeCodeWithChallenge(challenge: String) {
+        codes.remove(codes.find { challenge == it.challenge })
+    }
+
+    /**
+     * Remove code when the "it's not me" button is pressed
+     *
+     * @param code the code to remove
+     */
+    fun removeCode(appContext: Context, code: String) {
+        codes.remove(codes.find { code == it.code })
+        with(NotificationManagerCompat.from(appContext)) {
+            cancel(NotificationIds.REMOTE_ACCESS_OTP.id)
+        }
+    }
+
+    suspend fun removeAllCodes(appContext: Context) {
+        codes.clear()
+        with(NotificationManagerCompat.from(appContext)) {
+            cancel(NotificationIds.REMOTE_ACCESS_OTP.id)
+        }
+        RemoteAccessUtils.otpFlow.emit(null)
+    }
+}
+
+data class OTPCode(val code: String, val challenge: String, val expiration: Long)

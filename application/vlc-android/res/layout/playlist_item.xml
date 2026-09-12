@@ -1,0 +1,278 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layout xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:app="http://schemas.android.com/apk/res-auto"
+        xmlns:tools="http://schemas.android.com/tools">
+
+    <data>
+
+        <import type="android.view.View" />
+
+        <import type="android.text.TextUtils" />
+
+        <import type="org.videolan.tools.Strings" />
+
+        <variable
+                name="holder"
+                type="org.videolan.vlc.gui.audio.PlaylistAdapter.ViewHolder" />
+
+        <variable
+                name="cover"
+                type="android.graphics.drawable.BitmapDrawable" />
+
+        <variable
+                name="media"
+                type="org.videolan.medialibrary.interfaces.media.MediaWrapper" />
+
+        <variable
+                name="subTitle"
+                type="String" />
+
+        <variable
+                name="scaleType"
+                type="android.widget.ImageView.ScaleType" />
+
+        <variable
+                name="stopAfterThis"
+                type="java.lang.Boolean" />
+
+        <variable
+                name="showTrackNumbers"
+                type="java.lang.Boolean" />
+
+        <variable
+                name="showReorderButtons"
+                type="java.lang.Boolean" />
+
+        <variable
+                name="masked"
+                type="java.lang.Boolean" />
+
+    </data>
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/item_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+        <View
+                android:id="@+id/selector"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:layout_alignParentStart="true"
+                android:layout_centerVertical="true"
+                android:layout_marginEnd="8dp"
+                android:layout_toStartOf="@+id/item_more"
+                android:background="@drawable/rectangle_circle_right_orange_selector"
+                android:clickable="true"
+                android:focusable="true"
+                android:longClickable="true"
+                android:onClick="@{(view) -> holder.onClick(view, media)}"
+                android:orientation="vertical"
+                android:paddingTop="4dp"
+                android:paddingBottom="4dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@+id/item_move_up"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:mediaContentDescription="@{media}" />
+
+
+        <ImageView
+                android:id="@+id/coverImage"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_marginStart="8dp"
+                android:layout_marginTop="12dp"
+                android:layout_marginBottom="12dp"
+                android:layout_weight="1"
+                android:scaleType="@{scaleType}"
+                android:src="@{cover}"
+                app:card="@{true}"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintDimensionRatio="1"
+                app:layout_constraintStart_toStartOf="@+id/selector"
+                app:layout_constraintTop_toTopOf="parent"
+                app:media="@{media}"
+                tools:src="@tools:sample/avatars[0]" />
+
+
+        <org.videolan.vlc.gui.view.MiniVisualizer
+                android:id="@+id/playing"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                app:bar_color="?attr/mini_visualizer_color"
+                app:layout_constraintBottom_toBottomOf="@+id/coverImage"
+                app:layout_constraintEnd_toEndOf="@+id/coverImage"
+                app:layout_constraintStart_toStartOf="@+id/coverImage"
+                app:layout_constraintTop_toTopOf="@+id/coverImage" />
+
+        <TextView
+                android:id="@+id/track_number"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                app:trackNumber="@{media}"
+                android:minWidth="20dp"
+                android:gravity="end"
+                android:textColor="?attr/font_default"
+                android:textSize="14sp"
+                android:visibility="@{!showTrackNumbers  ? View.GONE : View.VISIBLE}"
+                app:layout_constraintEnd_toStartOf="@+id/audio_item_title"
+                app:layout_constraintStart_toEndOf="@+id/coverImage"
+                app:layout_constraintBaseline_toBaselineOf="@+id/audio_item_title"
+                tools:text="1." />
+
+        <TextView
+                android:id="@+id/audio_item_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_marginTop="4dp"
+                android:layout_marginEnd="8dp"
+                android:layout_marginBottom="2dp"
+                android:gravity="center_vertical"
+                android:importantForAccessibility="no"
+                android:maxLines="1"
+                android:paddingLeft="8dp"
+                android:paddingRight="8dp"
+                android:singleLine="true"
+                android:text="@{media.title}"
+                android:textColor="?attr/font_default"
+                android:textSize="16sp"
+                app:ellipsizeMode="@{true}"
+                app:layout_constraintBottom_toTopOf="@+id/audio_item_subtitle"
+                app:layout_constraintEnd_toEndOf="@+id/selector"
+                app:layout_constraintHorizontal_bias="0.5"
+                app:layout_constraintStart_toEndOf="@+id/track_number"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintVertical_chainStyle="packed"
+                tools:text="Symphonie n°1" />
+
+        <TextView
+                android:id="@+id/audio_item_subtitle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:layout_marginEnd="8dp"
+                android:layout_marginBottom="4dp"
+                android:ellipsize="middle"
+                android:fontFamily="sans-serif"
+                android:importantForAccessibility="no"
+                android:paddingLeft="8dp"
+                android:paddingRight="8dp"
+                android:singleLine="true"
+                android:text="@{subTitle}"
+                android:textColor="?attr/font_audio_light"
+                android:textSize="12sp"
+                android:visibility="@{TextUtils.isEmpty(subTitle) &amp;&amp; !stopAfterThis  ? View.GONE : View.VISIBLE}"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@+id/stop_after"
+                app:layout_constraintHorizontal_bias="0.5"
+                app:layout_constraintStart_toStartOf="@+id/audio_item_title"
+                app:layout_constraintTop_toBottomOf="@+id/audio_item_title"
+                tools:text="Beethoven" />
+
+        <ImageButton
+                android:id="@+id/item_more"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
+                android:layout_gravity="center"
+                android:layout_marginRight="4dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/more_actions"
+                android:onClick="@{holder::onMoreClick}"
+                android:padding="8dp"
+                android:scaleType="center"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:srcCompat="@drawable/ic_more" />
+
+        <androidx.appcompat.widget.AppCompatImageView
+                android:id="@+id/item_delete"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
+                android:layout_gravity="center"
+                android:layout_marginEnd="8dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:clickable="true"
+                android:focusable="true"
+                android:onClick="@{holder::onDeleteClick}"
+                android:padding="8dp"
+                android:scaleType="center"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@+id/item_more"
+                app:layout_constraintTop_toTopOf="parent"
+                app:srcCompat="@drawable/ic_playlist_delete" />
+
+        <androidx.appcompat.widget.AppCompatImageView
+                android:id="@+id/item_move_down"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
+                android:layout_gravity="center"
+                android:layout_marginEnd="8dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:visibility="@{showReorderButtons ? View.VISIBLE : View.GONE}"
+                android:clickable="true"
+                android:focusable="true"
+                android:onClick="@{holder::onMoveDownClick}"
+                android:padding="8dp"
+                android:scaleType="center"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@+id/item_delete"
+                app:layout_constraintTop_toTopOf="parent"
+                app:srcCompat="@drawable/ic_playlist_movedown" />
+
+        <androidx.appcompat.widget.AppCompatImageView
+                android:id="@+id/item_move_up"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
+                android:layout_gravity="center"
+                android:layout_marginEnd="8dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:clickable="true"
+                android:focusable="true"
+                android:onClick="@{holder::onMoveUpClick}"
+                android:visibility="@{showReorderButtons ? View.VISIBLE : View.GONE}"
+                android:padding="8dp"
+                android:scaleType="center"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@+id/item_move_down"
+                app:layout_constraintTop_toTopOf="parent"
+                app:srcCompat="@drawable/ic_playlist_moveup" />
+
+        <androidx.appcompat.widget.AppCompatImageView
+                android:id="@+id/stop_after"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:visibility="gone"
+                app:layout_constraintBottom_toBottomOf="@+id/audio_item_subtitle"
+                app:layout_constraintEnd_toEndOf="@+id/audio_item_title"
+                app:layout_constraintHorizontal_bias="0.5"
+                app:layout_constraintStart_toEndOf="@+id/audio_item_subtitle"
+                app:layout_constraintTop_toTopOf="@+id/audio_item_subtitle"
+                app:layout_constraintVertical_bias="0.625"
+                app:srcCompat="@drawable/ic_stop_after_this"
+                tools:visibility="visible" />
+
+        <View
+                android:id="@+id/tips_overlay"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:background="?attr/background_audio_tips"
+                android:visibility="@{masked ? View.VISIBLE : View.GONE}"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                tools:visibility="gone" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</layout>

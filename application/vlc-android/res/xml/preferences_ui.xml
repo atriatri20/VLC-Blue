@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<androidx.preference.PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+                                      xmlns:app="http://schemas.android.com/apk/res-auto"
+                                      android:key="ui_category"
+                                      android:title="@string/interface_prefs_screen">
+
+    <ListPreference
+            android:defaultValue="-1"
+            android:key="app_theme"
+            android:title="@string/daynight_title"
+            android:summary="%s"
+            android:entries="@array/daynight_mode_entries"
+            android:entryValues="@array/daynight_mode_values"/>
+
+    <CheckBoxPreference
+            app:singleLineTitle="false"
+            android:key="tv_ui"
+            android:summary="@string/tv_ui_summary"
+            android:title="@string/tv_ui_title"/>
+
+    <ListPreference
+            android:defaultValue=""
+            android:key="set_locale"
+            android:title="@string/set_locale"/>
+
+
+    <ListPreference
+            android:defaultValue="0"
+            android:entries="@array/list_title_ellipsize_list"
+            android:entryValues="@array/list_title_ellipsize_values"
+            android:key="list_title_ellipsize"
+            android:persistent="true"
+            android:title="@string/list_title_ellipsize"
+            android:summary="%s"/>
+
+    <CheckBoxPreference
+            app:singleLineTitle="false"
+            android:key="show_headers"
+            android:defaultValue="true"
+            android:summary="@string/show_headers_summary"
+            android:title="@string/show_headers"/>
+
+    <CheckBoxPreference
+            app:singleLineTitle="false"
+            android:key="tv_folders_first"
+            android:defaultValue="true"
+            app:isPreferenceVisible="false"
+            android:summary="@string/tv_folders_first_summary"
+            android:title="@string/tv_folders_first"/>
+
+    <CheckBoxPreference
+        app:singleLineTitle="false"
+        android:key="browser_show_hidden_files"
+        android:defaultValue="false"
+        app:isPreferenceVisible="false"
+        android:summary="@string/tv_show_hidden_files_summary"
+        android:title="@string/tv_show_hidden_files"/>
+
+    <CheckBoxPreference
+            app:singleLineTitle="false"
+            android:key="include_missing"
+            android:defaultValue="true"
+            android:summary="@string/browser_show_missing_media_summary"
+            android:title="@string/browser_show_missing_media"/>
+
+    <PreferenceScreen
+            app:singleLineTitle="false"
+            android:defaultValue="-1"
+            android:key="default_sleep_timer"
+            android:title="@string/sleep_title"/>
+
+    <CheckBoxPreference
+            app:singleLineTitle="false"
+            android:key="incognito_mode"
+            android:defaultValue="false"
+            android:title="@string/incognito_mode"/>
+
+    <CheckBoxPreference
+            app:singleLineTitle="false"
+            android:key="persistent_incognito"
+            android:dependency="incognito_mode"
+            android:defaultValue="true"
+            android:summary="@string/persistent_incognito_mode_summary"
+            android:title="@string/persistent_incognito_mode"/>
+
+    <PreferenceCategory
+            android:title="@string/video"
+            android:key="ui_video_category">
+
+        <CheckBoxPreference
+                app:singleLineTitle="false"
+                android:defaultValue="true"
+                android:key="media_seen"
+                android:summary="@string/media_seen_summary"
+                android:title="@string/media_seen"/>
+        <CheckBoxPreference
+                app:singleLineTitle="false"
+                android:defaultValue="false"
+                android:key="playlist_mode_video"
+                android:summary="@string/force_play_all_summary"
+                android:title="@string/force_play_all_title"/>
+        <CheckBoxPreference
+                app:singleLineTitle="false"
+                android:defaultValue="true"
+                android:key="show_video_thumbnails"
+                android:summary="@string/show_video_thumbnails_summary"
+                android:title="@string/show_video_thumbnails"/>
+    </PreferenceCategory>
+
+    <PreferenceCategory
+            android:title="@string/audio"
+            android:key="ui_audio_category">
+
+        <CheckBoxPreference
+                app:singleLineTitle="false"
+                android:defaultValue="true"
+                android:key="audio_resume_card"
+                android:title="@string/audio_resume_card_title"
+                android:summary="@string/audio_resume_card_summary"/>
+        <CheckBoxPreference
+            app:singleLineTitle="false"
+            android:defaultValue="false"
+            android:key="playlist_mode_audio"
+            android:summary="@string/force_play_all_audio_summary"
+            android:title="@string/force_play_all_audio_title"/>
+        <CheckBoxPreference
+                app:singleLineTitle="false"
+                android:defaultValue="true"
+                android:key="lockscreen_cover"
+                android:summary="@string/lockscreen_cover_summary"
+                android:title="@string/lockscreen_cover_title"/>
+        <CheckBoxPreference
+            app:singleLineTitle="false"
+            android:defaultValue="false"
+            android:key="show_seek_in_compact_notification"
+            android:summary="@string/show_seek_in_compact_notif_summary"
+            android:title="@string/show_seek_in_compact_notif_title"/>
+    </PreferenceCategory>
+</androidx.preference.PreferenceScreen>

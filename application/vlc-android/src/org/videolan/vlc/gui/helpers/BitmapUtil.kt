@@ -1,0 +1,405 @@
+/*****************************************************************************
+ * BitmapUtil.java
+ *
+ * Copyright © 2011-2014 VLC authors and VideoLAN
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
+ */
+
+package org.videolan.vlc.gui.helpers
+
+import android.content.ContentValues
+import android.content.Context
+import android.content.res.Resources
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffColorFilter
+import android.graphics.PorterDuffXfermode
+import android.graphics.Rect
+import android.graphics.RectF
+import android.graphics.drawable.BitmapDrawable
+import android.graphics.drawable.Drawable
+import android.graphics.drawable.VectorDrawable
+import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
+import android.util.Log
+import android.view.View
+import android.view.View.MeasureSpec
+import androidx.annotation.DrawableRes
+import androidx.annotation.RequiresApi
+import androidx.annotation.WorkerThread
+import androidx.appcompat.content.res.AppCompatResources
+import androidx.core.content.ContextCompat
+import androidx.core.graphics.drawable.DrawableCompat
+import androidx.vectordrawable.graphics.drawable.VectorDrawableCompat
+import org.videolan.medialibrary.interfaces.media.MediaWrapper
+import org.videolan.resources.AppContextProvider
+import org.videolan.tools.BitmapCache
+import org.videolan.tools.dp
+import org.videolan.tools.removeFileScheme
+import org.videolan.vlc.BuildConfig
+import org.videolan.vlc.R
+import org.videolan.vlc.VlcMigrationHelper
+import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
+import java.io.OutputStream
+import java.text.DecimalFormat
+
+
+object BitmapUtil {
+    const val TAG = "VLC/UiTools/BitmapUtil"
+
+
+    fun getPictureFromCache(media: MediaWrapper): Bitmap? {
+        // mPicture is not null only if passed through
+        // the ctor which is deprecated by now.
+        val b = media.picture
+        return b ?: BitmapCache.getBitmapFromMemCache(media.location)
+    }
+
+    private fun fetchPicture(media: MediaWrapper): Bitmap? {
+
+        val picture = readCoverBitmap(media.artworkURL)
+        if (picture != null) BitmapCache.addBitmapToMemCache(media.location, picture)
+        return picture
+    }
+
+    fun getPicture(media: MediaWrapper): Bitmap? {
+        val picture = getPictureFromCache(media)
+        return picture ?: fetchPicture(media)
+    }
+
+    private fun readCoverBitmap(path: String?): Bitmap? {
+        if (path == null) return null
+        val ctx = AppContextProvider.appContext
+        val res = ctx.resources
+        val uri = Uri.decode(path).removeFileScheme()
+        var cover: Bitmap? = null
+        val options = BitmapFactory.Options()
+        val height = res.getDimensionPixelSize(R.dimen.grid_card_thumb_height)
+        val width = res.getDimensionPixelSize(R.dimen.grid_card_thumb_width)
+
+        /* Get the resolution of the bitmap without allocating the memory */
+        options.inJustDecodeBounds = true
+        BitmapFactory.decodeFile(uri, options)
+
+        if (options.outWidth > 0 && options.outHeight > 0) {
+            if (options.outWidth > width) {
+                options.outWidth = width
+                options.outHeight = height
+            }
+            options.inJustDecodeBounds = false
+
+            // Decode the file (with memory allocation this time)
+            try {
+                cover = BitmapFactory.decodeFile(uri, options)
+            } catch (e: OutOfMemoryError) {
+                cover = null
+            }
+
+        }
+
+        return cover
+    }
+
+    fun convertBitmapToByteArray(bitmap: Bitmap): ByteArray? {
+        val stream = ByteArrayOutputStream()
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 100, stream)
+        return stream.toByteArray()
+    }
+
+
+    /**
+     * Encode bitmap in WEBP format.
+     */
+    @Suppress("DEPRECATION")
+    fun encodeImage(bmp: Bitmap?, enableTracing:Boolean = false, timestampProvider: (() -> String?)? = null): ByteArray? {
+        if (bmp == null) return null
+        val bos = ByteArrayOutputStream()
+        val startTime = if (enableTracing) System.currentTimeMillis() else 0L
+        bmp.compress(Bitmap.CompressFormat.WEBP, 100, bos)
+        if (enableTracing) {
+            val endTime = System.currentTimeMillis()
+            val ratio = DecimalFormat("###.#%").format((1 - (bos.size().toDouble() / bmp.byteCount.toDouble())))
+            Log.d("VLC/ArtworkProvider", "encImage() Time: ${timestampProvider?.let { it() } ?: ""} Duration: " + (endTime - startTime) + "ms Comp. Ratio: $ratio Thread: ${Thread.currentThread().name}")
+        }
+        return bos.toByteArray()
+    }
+
+
+    fun centerCrop(srcBmp: Bitmap, width: Int, height: Int): Bitmap {
+        val widthDiff = srcBmp.width - width
+        val heightDiff = srcBmp.height - height
+        if (widthDiff <= 0 && heightDiff <= 0) return srcBmp
+        return try {
+            Bitmap.createBitmap(
+                    srcBmp,
+                    widthDiff / 2,
+                    heightDiff / 2,
+                    width,
+                    height
+            )
+        } catch (ignored: Exception) {
+            srcBmp
+        }
+
+    }
+
+    fun vectorToBitmap(context: Context, @DrawableRes resVector: Int, width: Int? = null, height: Int? = null): Bitmap {
+        val drawable = AppCompatResources.getDrawable(context, resVector) ?: throw IllegalStateException("Invalid drawable")
+        val b = Bitmap.createBitmap(width ?: drawable.intrinsicWidth, height
+                ?: drawable.intrinsicHeight, Bitmap.Config.ARGB_8888)
+        val c = Canvas(b)
+        drawable.setBounds(0, 0, c.width, c.height)
+        drawable.draw(c)
+        return b
+    }
+
+    /**
+     * Tints a [Bitmap] with a color
+     * @param bitmap the bitmap to tint
+     * @param color the color used yt the tint
+     * @return a tinted [Bitmap]
+     */
+    fun tintImage(bitmap: Bitmap, color: Int): Bitmap {
+        val paint = Paint()
+        paint.colorFilter = PorterDuffColorFilter(color, PorterDuff.Mode.SRC_IN)
+        val bitmapResult = Bitmap.createBitmap(bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmapResult)
+        canvas.drawBitmap(bitmap, 0F, 0F, paint)
+        return bitmapResult
+    }
+
+    /**
+     * Cut a [Bitmap] into a round one
+     * @param the [Bitmap] to use
+     * @return a rounded [Bitmap]
+     */
+    fun roundBitmap(bm: Bitmap): Bitmap {
+
+        var w: Int = bm.width
+        var h: Int = bm.height
+
+        val radius = if (w < h) w else h
+        w = radius
+        h = radius
+
+        val bmOut = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bmOut)
+
+        val paint = Paint()
+        paint.isAntiAlias = true
+        paint.color = -0xFFFFFF
+
+        val rect = Rect(0, 0, w, h)
+        val rectF = RectF(rect)
+
+        canvas.drawARGB(0, 0, 0, 0)
+        canvas.drawCircle(rectF.left + rectF.width() / 2, rectF.top + rectF.height() / 2, (radius / 2).toFloat(), paint)
+
+        paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_IN)
+        //depending on the bm ratio, modify the bounds to keep a square bitmap
+        val bounds = bm.getMaximalSquareBounds()
+        canvas.drawBitmap(bm, bounds, rect, paint)
+
+        return bmOut
+    }
+
+    /**
+     * Cut a [Bitmap] into a rounded rectangle
+     *
+     * @param bm the [Bitmap] to cut
+     * @param width the size of the returned bitmap
+     * @param radius the corner radius to use
+     * @param topLeft cut the top left corner?
+     * @param topRight cut the top right corner?
+     * @param bottomLeft cut the bottom left corner?
+     * @param bottomRight cut the bottom right corner?
+     * @return a rounded rectangle bitmap
+     */
+    fun roundedRectangleBitmap(bm: Bitmap, width: Int, height: Int = -1, radius: Float = 12.dp.toFloat(), topLeft: Boolean = true, topRight: Boolean = true, bottomLeft: Boolean = true, bottomRight: Boolean = true): Bitmap {
+
+        val w: Int = width
+        val h: Int = if (height == -1) width else height
+
+
+        val bmOut = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bmOut)
+
+        val paint = Paint()
+        paint.isAntiAlias = true
+        paint.color = -0xFFFFFF
+
+        val rect = Rect(0, 0, w, h)
+        val rectF = RectF(rect)
+
+        canvas.drawARGB(0, 0, 0, 0)
+        canvas.drawRoundRect(rectF, radius, radius, paint)
+
+        if (!topLeft) canvas.drawRect(RectF(0F, 0F, radius, radius), paint)
+        if (!topRight) canvas.drawRect(RectF(w.toFloat() - radius, 0F, w.toFloat(), radius), paint)
+        if (!bottomLeft) canvas.drawRect(RectF(0F, h.toFloat() - radius, radius, h.toFloat()), paint)
+        if (!bottomRight) canvas.drawRect(RectF(w.toFloat() - radius, h.toFloat() - radius, w.toFloat(), h.toFloat()), paint)
+
+        paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_IN)
+
+        //depending on the bm ratio, modify the bounds to keep a square bitmap
+        val bounds = if (height == -1 || width == height) bm.getMaximalSquareBounds() else null
+
+        canvas.drawBitmap(bm, bounds, rect, paint)
+
+        return bmOut
+    }
+
+    /**
+     * Get the bound of the maximal size to cut a bitmap into a square
+     *
+     * @return the bounds
+     */
+    private fun Bitmap.getMaximalSquareBounds() = when {
+        width > height -> Rect((width - height) / 2, 0, height + ((width - height) / 2), height)
+        width < height -> Rect(0, (height - width) / 2, width, width + ((height - width) / 2))
+        else -> Rect(0, 0, width, height)
+    }
+
+    fun saveOnDisk(bitmap: Bitmap, destPath: String, publish: Boolean = false, context: Context? = null):Boolean {
+        if (publish && context == null) throw IllegalStateException("Cannot publish image without context")
+        if (publish && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) return saveImageInQ(context!!, bitmap, File(destPath).name)
+        val destFile = File(destPath)
+        return when {
+            destFile.parentFile?.canWrite() == true -> {
+                try {
+                    ByteArrayOutputStream().use { stream ->
+                        bitmap.compress(Bitmap.CompressFormat.JPEG, 100, stream)
+                        FileOutputStream(destFile).use { it.write(stream.toByteArray()) }
+                    }
+                    if (publish)
+                        MediaStore.Images.Media.insertImage(context!!.contentResolver, destPath, File(destPath).name, File(destPath).name);
+                    true
+                } catch (e: IOException) {
+                    Log.e(TAG, "Could not save image to disk", e)
+                    false
+                }
+            }
+            else -> {
+                Log.e(TAG, "File path not writable: $destFile")
+                false
+            }
+        }
+    }
+
+    /**
+     * Save image for Android version >= Q
+     *
+     * @param context the context to use to get the [android.content.ContentResolver]
+     * @param bitmap the bitmap to save
+     * @param filename the filename
+     * @return true if the bitmap has been saved successfully
+     */
+    @WorkerThread
+    @RequiresApi(Build.VERSION_CODES.Q)
+    private fun saveImageInQ(context: Context, bitmap: Bitmap, filename: String): Boolean {
+        var fos: OutputStream? = null
+        var imageUri: Uri? = null
+        val contentValues = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
+            put(MediaStore.MediaColumns.MIME_TYPE, "image/jpg")
+            put(MediaStore.MediaColumns.RELATIVE_PATH, "${Environment.DIRECTORY_PICTURES}/${Environment.DIRECTORY_SCREENSHOTS}")
+            put(MediaStore.Images.Media.IS_PENDING, 1)
+        }
+        val contentResolver = context.applicationContext.contentResolver
+        contentResolver.also { resolver ->
+            imageUri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+            fos = imageUri?.let { resolver.openOutputStream(it) }
+        }
+        fos?.use { bitmap.compress(Bitmap.CompressFormat.JPEG, 100, it) }
+        contentValues.clear()
+        contentValues.put(MediaStore.Images.Media.IS_PENDING, 0)
+        imageUri?.let {
+            contentResolver.update(it, contentValues, null, null)
+        }
+        return imageUri != null
+    }
+
+}
+
+/**
+ * Get a colored [Bitmap] from a drawable
+ * @param drawableRes the drawable resource to use
+ * @param color the color to use to tint the [Bitmap]
+ * @param width the [Bitmap] width
+ * @param height the [Bitmap] height
+ *
+ * @return a colored [Bitmap]
+ */
+fun Context.getColoredBitmapFromColor(@DrawableRes drawableRes: Int, color: Int, width: Int? = null, height: Int? = null) =
+        BitmapUtil.tintImage(BitmapUtil.vectorToBitmap(this, drawableRes, width, height)!!, color).also {
+            if (BuildConfig.DEBUG) Log.d("AppWidget", "Refresh - getColoredBitmapFromColor - $drawableRes - ${resources.getResourceName(drawableRes)}")
+        }
+
+fun Bitmap?.centerCrop(dstWidth: Int, dstHeight: Int): Bitmap? {
+    if (this == null) return null
+    return BitmapUtil.centerCrop(this, dstWidth, dstHeight)
+}
+
+
+fun Context.getBitmapFromDrawable(@DrawableRes drawableId: Int, width: Int = -1, height: Int = -1): Bitmap? {
+    var drawable: Drawable = try {
+        ContextCompat.getDrawable(this, drawableId) ?: return null
+    } catch (e: Resources.NotFoundException) {
+        VectorDrawableCompat.create(this.resources, drawableId, this.theme)!!
+    }
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
+        drawable = DrawableCompat.wrap(drawable).mutate()
+    }
+    return when {
+        drawable is BitmapDrawable -> drawable.bitmap
+        drawable is VectorDrawableCompat || (VlcMigrationHelper.isLolliPopOrLater && drawable is VectorDrawable) -> {
+            val bitmap = if (width > 0 && height > 0)
+                Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+            else
+                Bitmap.createBitmap(drawable.intrinsicWidth, drawable.intrinsicHeight, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(bitmap)
+            drawable.setBounds(0, 0, canvas.width, canvas.height)
+            drawable.draw(canvas)
+            bitmap
+        }
+        else -> BitmapFactory.decodeResource(this.resources, drawableId)
+    }
+}
+
+fun bitmapFromView(view: View, width: Int, height: Int): Bitmap {
+    var bmp: Bitmap
+    try {
+        bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        view.measure(MeasureSpec.makeMeasureSpec(bmp.width, MeasureSpec.EXACTLY),
+                MeasureSpec.makeMeasureSpec(bmp.height, MeasureSpec.EXACTLY))
+        view.layout(0, 0, view.measuredWidth, view.measuredHeight)
+        view.draw(Canvas(bmp))
+    } catch (e: OutOfMemoryError) {
+        Log.e("BitmapUtil", e.message, e)
+        bmp = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888)
+        bmp.setPixel(0, 0, Color.TRANSPARENT)
+    }
+    return bmp
+}

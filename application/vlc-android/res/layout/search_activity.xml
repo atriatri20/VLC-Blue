@@ -1,0 +1,227 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layout xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <data>
+
+        <import type="android.view.View" />
+
+        <import type="org.videolan.medialibrary.Tools" />
+
+        <variable
+                name="searchAggregate"
+                type="org.videolan.medialibrary.media.SearchAggregate" />
+
+        <variable
+                name="handler"
+                type="org.videolan.vlc.gui.SearchActivity.ClickHandler" />
+    </data>
+
+    <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical">
+
+        <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="?attr/background_default">
+
+            <ImageView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center_vertical"
+                    android:layout_marginStart="16dp"
+                    android:layout_marginEnd="16dp"
+                    android:onClick="@{handler::onBack}"
+                    app:srcCompat="@drawable/ic_arrow_back" />
+
+            <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/search_edit_layout"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="16dp"
+                    android:layout_weight="1"
+                    app:endIconMode="clear_text">
+
+                <EditText
+                        android:id="@+id/search_edit_text"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center_vertical"
+                        android:hint="@string/search_hint"
+                        android:imeOptions="actionSearch"
+                        android:inputType="textFilter" >
+                    <requestFocus/>
+                </EditText>
+            </com.google.android.material.textfield.TextInputLayout>
+        </LinearLayout>
+
+        <androidx.core.widget.NestedScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="?attr/background_default"
+                android:visibility="@{searchAggregate.isEmpty ? View.GONE : View.VISIBLE}">
+
+            <LinearLayout
+                    android:id="@+id/results_container"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingTop="16dp">
+
+                <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="16dp"
+                        android:layout_marginTop="4dp"
+                        android:layout_marginBottom="8dp"
+                        android:text="@string/videos"
+                        android:textAppearance="@style/Result.Title"
+                        android:visibility="@{Tools.isArrayEmpty(searchAggregate.videos) ? View.GONE : View.VISIBLE}" />
+
+                <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/others_results"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="16dp"
+                        android:background="?attr/background_default"
+                        android:visibility="@{Tools.isArrayEmpty(searchAggregate.videos) ? View.GONE : View.VISIBLE}" />
+
+                <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:layout_marginTop="16dp"
+                        android:layout_marginBottom="4dp"
+                        android:background="?attr/default_divider"
+                        android:visibility="@{Tools.isArrayEmpty(searchAggregate.tracks) ? View.GONE : View.VISIBLE}" />
+
+                <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="16dp"
+                        android:layout_marginBottom="8dp"
+                        android:text="@string/tracks"
+                        android:textAppearance="@style/Result.Title"
+                        android:visibility="@{Tools.isArrayEmpty(searchAggregate.tracks) ? View.GONE : View.VISIBLE}" />
+
+                <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/songs_results"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="16dp"
+                        android:background="?attr/background_default"
+                        android:visibility="@{Tools.isArrayEmpty(searchAggregate.tracks) ? View.GONE : View.VISIBLE}" />
+
+                <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:layout_marginTop="16dp"
+                        android:layout_marginBottom="4dp"
+                        android:background="?attr/default_divider"
+                        android:visibility="@{Tools.isArrayEmpty(searchAggregate.albums) ? View.GONE : View.VISIBLE}" />
+
+                <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="16dp"
+                        android:layout_marginBottom="8dp"
+                        android:text="@string/albums"
+                        android:textAppearance="@style/Result.Title"
+                        android:visibility="@{Tools.isArrayEmpty(searchAggregate.albums) ? View.GONE : View.VISIBLE}" />
+
+                <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/albums_results"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="?attr/background_default"
+                        android:visibility="@{Tools.isArrayEmpty(searchAggregate.albums) ? View.GONE : View.VISIBLE}" />
+                <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:layout_marginTop="16dp"
+                        android:layout_marginBottom="4dp"
+                        android:visibility="@{Tools.isArrayEmpty(searchAggregate.artists) ? View.GONE : View.VISIBLE}"
+                        android:background="?attr/default_divider"/>
+
+                <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="16dp"
+                        android:text="@string/artists"
+                        android:layout_marginBottom="8dp"
+                        android:textAppearance="@style/Result.Title"
+                        android:visibility="@{Tools.isArrayEmpty(searchAggregate.artists) ? View.GONE : View.VISIBLE}" />
+
+                <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/artists_results"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="16dp"
+                        android:background="?attr/background_default"
+                        android:visibility="@{Tools.isArrayEmpty(searchAggregate.artists) ? View.GONE : View.VISIBLE}" />
+
+                <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:layout_marginTop="16dp"
+                        android:layout_marginBottom="4dp"
+                        android:visibility="@{Tools.isArrayEmpty(searchAggregate.genres) ? View.GONE : View.VISIBLE}"
+                        android:background="?attr/default_divider"/>
+
+                <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="16dp"
+                        android:text="@string/genres"
+                        android:layout_marginBottom="8dp"
+                        android:textAppearance="@style/Result.Title"
+                        android:visibility="@{Tools.isArrayEmpty(searchAggregate.genres) ? View.GONE : View.VISIBLE}" />
+
+                <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/genres_results"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="16dp"
+                        android:background="?attr/background_default"
+                        android:visibility="@{Tools.isArrayEmpty(searchAggregate.genres) ? View.GONE : View.VISIBLE}" />
+
+                <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:layout_marginTop="16dp"
+                        android:layout_marginBottom="4dp"
+                        android:visibility="@{Tools.isArrayEmpty(searchAggregate.playlists) ? View.GONE : View.VISIBLE}"
+                        android:background="?attr/default_divider"/>
+
+                <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="16dp"
+                        android:text="@string/playlists"
+                        android:layout_marginBottom="8dp"
+                        android:textAppearance="@style/Result.Title"
+                        android:visibility="@{Tools.isArrayEmpty(searchAggregate.playlists) ? View.GONE : View.VISIBLE}" />
+
+                <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/playlists_results"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="16dp"
+                        android:background="?attr/background_default"
+                        android:visibility="@{Tools.isArrayEmpty(searchAggregate.playlists) ? View.GONE : View.VISIBLE}" />
+
+            </LinearLayout>
+        </androidx.core.widget.NestedScrollView>
+
+        <org.videolan.vlc.gui.view.EmptyLoadingStateView
+                android:id="@+id/audio_empty_loading"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                app:empty_text="@string/search_no_result"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+    </LinearLayout>
+</layout>

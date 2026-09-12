@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<androidx.preference.PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:app="http://schemas.android.com/apk/res-auto"
+        android:key="video_category"
+        android:title="@string/video_prefs_category">
+
+    <CheckBoxPreference
+            android:defaultValue="true"
+            android:key="audio_boost"
+            android:summary="@string/audio_boost_summary"
+            android:title="@string/audio_boost_title"
+            app:iconSpaceReserved="false"
+            app:singleLineTitle="false" />
+
+    <CheckBoxPreference
+            app:singleLineTitle="false"
+            android:defaultValue="true"
+            android:key="save_individual_audio_delay"
+            app:iconSpaceReserved="false"
+            android:summary="@string/save_audiodelay_summary"
+            android:title="@string/save_audiodelay_title"/>
+
+    <ListPreference
+            app:singleLineTitle="false"
+            android:defaultValue="0"
+            android:key="video_confirm_resume"
+            app:iconSpaceReserved="false"
+            android:entries="@array/ask_confirmation_entries"
+            android:entryValues="@array/ask_confirmation_values"
+            android:summary="%s"
+            android:title="@string/confirm_resume_title"/>
+
+    <PreferenceCategory android:title="@string/gestures"
+            app:iconSpaceReserved="false">
+        <CheckBoxPreference
+                android:defaultValue="true"
+                android:key="enable_volume_gesture"
+                android:summary="@string/enable_volume_gesture_summary"
+                android:title="@string/enable_volume_gesture_title"
+                app:iconSpaceReserved="false"
+                app:singleLineTitle="false" />
+        <CheckBoxPreference
+                android:defaultValue="true"
+                android:key="enable_brightness_gesture"
+                android:summary="@string/enable_brightness_gesture_summary"
+                android:title="@string/enable_brightness_gesture_title"
+                app:iconSpaceReserved="false"
+                app:singleLineTitle="false" />
+        <CheckBoxPreference
+                app:singleLineTitle="false"
+                android:defaultValue="false"
+                android:key="save_brightness"
+                app:iconSpaceReserved="false"
+                android:summary="@string/save_brightness_summary"
+                android:title="@string/save_brightness_title"/>
+        <CheckBoxPreference
+                android:defaultValue="true"
+                android:key="enable_swipe_seek"
+                android:summary="@string/enable_swipe_seek_summary"
+                android:title="@string/enable_swipe_seek_title"
+                app:iconSpaceReserved="false"
+                app:singleLineTitle="false" />
+        <CheckBoxPreference
+                android:defaultValue="true"
+                android:key="enable_scale_gesture"
+                android:summary="@string/enable_scale_gesture_summary"
+                android:title="@string/enable_scale_gesture_title"
+                app:iconSpaceReserved="false"
+                app:singleLineTitle="false" />
+        <CheckBoxPreference
+                android:defaultValue="true"
+                android:key="enable_double_tap_seek"
+                android:summary="@string/enable_double_tap_seek_summary"
+                android:title="@string/enable_double_tap_seek_title"
+                app:iconSpaceReserved="false"
+                app:singleLineTitle="false" />
+        <org.videolan.vlc.gui.view.NumberPickerPreference
+                android:defaultValue="10"
+                android:dependency="enable_double_tap_seek"
+                app:iconSpaceReserved="false"
+                app:key="video_double_tap_jump_delay"
+                app:title="@string/video_double_tap_jump_delay" />
+        <CheckBoxPreference
+                android:defaultValue="true"
+                android:key="enable_double_tap_play"
+                android:summary="@string/enable_double_tap_play_summary"
+                android:title="@string/enable_double_tap_play_title"
+                app:iconSpaceReserved="false"
+                app:singleLineTitle="false" />
+
+        <ListPreference
+                android:defaultValue="0"
+                android:entries="@array/video_screenshot"
+                android:entryValues="@array/video_screenshot_values"
+                android:key="screenshot_mode"
+                android:summary="%s"
+                android:title="@string/enable_video_screenshot"
+                app:iconSpaceReserved="false"
+                app:singleLineTitle="false" />
+        <CheckBoxPreference
+                android:defaultValue="false"
+                android:key="enable_fastplay"
+                android:summary="@string/enable_tap_and_hold_fastplay_summary"
+                android:title="@string/enable_tap_and_hold_fastplay_title"
+                app:iconSpaceReserved="false"
+                app:singleLineTitle="false" />
+        <SeekBarPreference
+                android:defaultValue="20"
+                android:dependency="enable_fastplay"
+                android:key="fastplay_speed"
+                android:max="80"
+                android:summary="%s"
+                android:title="@string/fastplay_speed_title"
+                app:iconSpaceReserved="false"
+                app:min="11"
+                app:seekBarIncrement="1"
+                app:singleLineTitle="false"
+                app:updatesContinuously="true" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="@string/player_controls"
+            app:iconSpaceReserved="false">
+        <CheckBoxPreference
+                android:defaultValue="false"
+                android:key="enable_seek_buttons"
+                android:summary="@string/enable_seek_buttons_summary"
+                android:title="@string/enable_seek_buttons"
+                app:iconSpaceReserved="false"
+                app:singleLineTitle="false" />
+
+        <org.videolan.vlc.gui.view.NumberPickerPreference
+                android:defaultValue="10"
+                android:dependency="enable_seek_buttons"
+                app:iconSpaceReserved="false"
+                app:key="video_jump_delay"
+                app:title="@string/jump_delay" />
+
+        <org.videolan.vlc.gui.view.NumberPickerPreference
+                android:defaultValue="20"
+                android:dependency="enable_seek_buttons"
+                app:iconSpaceReserved="false"
+                app:key="video_long_jump_delay"
+                app:title="@string/long_jump_delay" />
+
+        <CheckBoxPreference
+                android:defaultValue="false"
+                android:key="popup_keepscreen"
+                android:summary="@string/popup_keepscreen_summary"
+                android:title="@string/popup_keepscreen_title"
+                app:iconSpaceReserved="false"
+                app:singleLineTitle="false" />
+
+
+        <SeekBarPreference
+                android:defaultValue="4"
+                android:key="video_hud_timeout_in_s"
+                android:max="16"
+                android:summary="%s"
+                android:title="@string/video_hud_timeout"
+                app:iconSpaceReserved="false"
+                app:min="1"
+                app:seekBarIncrement="1"
+                app:singleLineTitle="false"
+                app:updatesContinuously="true" />
+
+        <CheckBoxPreference
+                app:singleLineTitle="false"
+                android:defaultValue="true"
+                android:key="video_transition_show"
+                app:iconSpaceReserved="false"
+                android:summary="@string/video_transition_summary"
+                android:title="@string/video_transition_title"/>
+
+        <CheckBoxPreference
+                android:defaultValue="true"
+                android:key="lock_use_sensor"
+                app:iconSpaceReserved="false"
+                android:summary="@string/lock_use_sensor_summary"
+                android:title="@string/lock_use_sensor_title"
+                app:singleLineTitle="false" />
+    </PreferenceCategory>
+
+
+</androidx.preference.PreferenceScreen>

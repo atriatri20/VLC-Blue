@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layout xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <data>
+    <import type="org.videolan.vlc.gui.helpers.TalkbackUtil" />
+        <import type="org.videolan.medialibrary.interfaces.media.MediaWrapper" />
+        <variable
+                name="item"
+                type="MediaWrapper" />
+    </data>
+
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:contentDescription="@{TalkbackUtil.INSTANCE.getStream(context, item)}"
+            android:focusable="false"
+            android:maxLines="1">
+
+        <View
+                android:id="@+id/selector"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:background="@drawable/rectangle_circle_right_white_selector"
+                android:clickable="true"
+                android:focusable="true"
+                android:importantForAccessibility="no"
+                android:nextFocusRight="@+id/mrl_ctx"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+        <TextView
+                android:id="@+id/mrl_item_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_marginTop="8dp"
+                android:layout_marginEnd="16dp"
+                android:maxLines="2"
+                android:textAppearance="@style/Base.TextAppearance.AppCompat.Medium"
+                android:textColor="?attr/font_default"
+                app:layout_constraintEnd_toStartOf="@+id/mrl_ctx"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+        <TextView
+                android:id="@+id/mrl_item_uri"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="16dp"
+                android:layout_marginBottom="8dp"
+                android:ellipsize="middle"
+                android:fontFamily="sans-serif"
+                android:gravity="center_vertical"
+                android:maxLines="1"
+                android:singleLine="true"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@+id/mrl_ctx"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/mrl_item_title" />
+
+        <androidx.appcompat.widget.AppCompatImageView
+                android:id="@+id/mrl_ctx"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:nextFocusLeft="@+id/selector"
+                android:padding="8dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                android:contentDescription="@string/more_actions"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:srcCompat="@drawable/ic_more" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</layout>
