@@ -356,6 +356,9 @@ abstract class BaseBrowserFragment : MediaBrowserFragment<BrowserModel>(), IRefr
             DISPLAY_IN_CARDS -> {
                 Settings.getInstance(requireActivity()).putSingle(BROWSER_DISPLAY_IN_CARDS, value as Boolean)
                 inCards = value
+                manageDisplay()
+                binding.networkList.recycledViewPool.clear()
+                adapter.notifyDataSetChanged()
             }
 
             BROWSER_LARGE_CARDS -> {
