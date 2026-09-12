@@ -32,7 +32,6 @@ import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
-import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.databinding.DataBindingUtil
@@ -59,6 +58,7 @@ class ImageBrowserActivity : BaseActivity() {
     private val images = ArrayList<ImageInfo>()
     private lateinit var adapter: ImageGridAdapter
     private var thumbnailSize = 320
+    private var loading = false
 
     override fun getSnackAnchorView(overAudioPlayer: Boolean): View = binding.root
     override val displayTitle = true
@@ -108,10 +108,12 @@ class ImageBrowserActivity : BaseActivity() {
 
     override fun onResume() {
         super.onResume()
-        if (hasImagesPermission() && images.isEmpty() && binding.empty.visibility != View.VISIBLE) loadImages()
+        if (hasImagesPermission() && images.isEmpty() && !loading && binding.empty.visibility != View.VISIBLE) loadImages()
     }
 
     private fun loadImages() {
+        if (loading) return
+        loading = true
         binding.empty.visibility = View.GONE
         lifecycleScope.launch {
             val list = withContext(Dispatchers.IO) {
@@ -125,6 +127,7 @@ class ImageBrowserActivity : BaseActivity() {
             images.addAll(list)
             adapter.notifyDataSetChanged()
             binding.empty.visibility = if (images.isEmpty()) View.VISIBLE else View.GONE
+            loading = false
         }
     }
 
