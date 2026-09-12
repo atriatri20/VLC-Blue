@@ -48,9 +48,17 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import android.util.LruCache
+import java.util.concurrent.ConcurrentHashMap
+import kotlin.math.abs
 import org.videolan.tools.BitmapCache
 import org.videolan.tools.Settings
 import org.videolan.vlc.R
@@ -75,6 +83,7 @@ class ImageViewerActivity : BaseActivity() {
         const val EXTRA_POSITION = "extra_position"
         private const val EXTRA_FOLDER_MODE = "extra_folder_mode"
         private const val DECODE_FACTOR = 1.5f
+        private const val DEFAULT_RATIO = 1.5f
         private const val PREF_VIEWER_MODE = "image_viewer_mode"
         private const val PREF_AUTO_SPEED = "image_auto_scroll_speed"
         const val MODE_PAGE_VERTICAL = 0
@@ -113,6 +122,19 @@ class ImageViewerActivity : BaseActivity() {
     private var autoScrolling = false
     private var touchPaused = false
     private var autoSpeed = 3
+    private var stripWidth = 0
+    private var sizePrefetchJob: Job? = null
+
+    // continuous strip: downloaded bytes (shared by prefetch and decode),
+    // predicted height/width ratio per position, in-flight downloads
+    private val stripIoScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val stripBytes = object : LruCache<Int, ByteArray>(48 * 1024 * 1024) {
+        override fun sizeOf(key: Int, value: ByteArray) = value.size
+    }
+    private val stripSizes = ConcurrentHashMap<Int, Float>()
+    private val stripBytesJobs = ConcurrentHashMap<Int, Deferred<ByteArray?>>()
+    private val stripInflight = ConcurrentHashMap.newKeySet<Int>()
+
     private lateinit var insetsController: WindowInsetsControllerCompat
 
     override fun getSnackAnchorView(overAudioPlayer: Boolean): View? = binding.root
@@ -216,6 +238,7 @@ class ImageViewerActivity : BaseActivity() {
             binding.pager.visibility = View.GONE
             binding.strip.visibility = View.VISIBLE
             binding.autoScrollFab.visibility = View.VISIBLE
+            stripWidth = binding.strip.width.takeIf { it > 0 } ?: resources.displayMetrics.widthPixels
             // block the scroll listener while the strip settles, otherwise it
             // overwrites currentIndex with 0 and the viewer opens at image 1
             stripPendingPositioning = true
@@ -226,11 +249,14 @@ class ImageViewerActivity : BaseActivity() {
             binding.strip.post {
                 (binding.strip.layoutManager as? LinearLayoutManager)?.scrollToPositionWithOffset(currentIndex, 0)
                 stripPendingPositioning = false
+                if (binding.strip.width > 0) stripWidth = binding.strip.width
             }
             syncFab()
             if (autoScrolling) startAutoScrollTick()
+            startStripSizePrefetch()
         } else {
             autoScrolling = false
+            sizePrefetchJob?.cancel()
             binding.strip.visibility = View.GONE
             binding.autoScrollFab.visibility = View.GONE
             binding.pager.visibility = View.VISIBLE
@@ -483,12 +509,20 @@ class ImageViewerActivity : BaseActivity() {
      */
     inner class StripAdapter(private val items: List<ImageInfo>) : RecyclerView.Adapter<StripAdapter.StripHolder>() {
 
+        fun ratioAt(position: Int): Float = stripSizes[position] ?: DEFAULT_RATIO
+
+        fun applyCellHeight(view: AppCompatImageView, ratio: Float) {
+            val params = view.layoutParams as? RecyclerView.LayoutParams ?: return
+            val height = (stripWidth * ratio).toInt().coerceAtLeast(1)
+            if (params.height != height) {
+                params.height = height
+                view.layoutParams = params
+            }
+        }
+
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): StripHolder {
             val view = AppCompatImageView(parent.context)
-            // fixed cell height: images load asynchronously, a wrap_content cell
-            // would collapse and shift the scroll position back to the top
-            val cellHeight = parent.resources.displayMetrics.heightPixels
-            view.layoutParams = RecyclerView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, cellHeight)
+            view.layoutParams = RecyclerView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
             view.scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
             view.setBackgroundColor(android.graphics.Color.BLACK)
             return StripHolder(view)
@@ -497,6 +531,7 @@ class ImageViewerActivity : BaseActivity() {
         override fun getItemCount() = items.size
 
         override fun onBindViewHolder(holder: StripHolder, position: Int) {
+            applyCellHeight(holder.view, ratioAt(position))
             holder.bind(items[position], position)
         }
 
@@ -507,13 +542,33 @@ class ImageViewerActivity : BaseActivity() {
                 lifecycleScope.launch {
                     var bitmap: Bitmap? = null
                     try {
-                        bitmap = withContext(Dispatchers.IO) { getFullBitmap(item) }
+                        val bytes = ensureStripBytes(position).await()
+                        bitmap = if (bytes != null) withContext(Dispatchers.IO) { ImageRepository.decodeSampledBitmap(bytes, decodeWidth, decodeHeight) }
+                        else withContext(Dispatchers.IO) { ImageRepository.decodeSampledBitmap(applicationContext, item.uri, decodeWidth, decodeHeight) }
                     } catch (e: SmbImageLoader.SmbAuthRequiredException) {
                         withContext(Dispatchers.Main) { promptSmbCredentials(e.host) }
                     } catch (ignored: Exception) {
                     }
-                    if (view.tag == item.uri) view.setImageBitmap(bitmap)
-                    if (bitmap != null) withContext(Dispatchers.IO) {
+                    if (view.tag != item.uri || bitmap == null) return@launch
+                    view.setImageBitmap(bitmap)
+                    // refine the predicted ratio with the real one; if rows above
+                    // the current image changed height, keep the visual anchor stable
+                    val actualRatio = bitmap.height.toFloat() / bitmap.width
+                    val predicted = stripSizes.put(position, actualRatio) ?: DEFAULT_RATIO
+                    withContext(Dispatchers.Main) {
+                        if (abs(actualRatio - predicted) > 0.01f && position < currentIndex) {
+                            val lm = binding.strip.layoutManager as? LinearLayoutManager
+                            val anchor = lm?.findViewByPosition(currentIndex)
+                            val oldTop = anchor?.top
+                            applyCellHeight(view, actualRatio)
+                            binding.strip.adapter?.notifyItemChanged(position)
+                            if (oldTop != null) binding.strip.post {
+                                val newTop = (binding.strip.layoutManager as? LinearLayoutManager)?.findViewByPosition(currentIndex)?.top
+                                if (newTop != null) binding.strip.scrollBy(0, newTop - oldTop)
+                            }
+                        } else applyCellHeight(view, actualRatio)
+                    }
+                    withContext(Dispatchers.IO) {
                         prefetchStrip(position + 1)
                         prefetchStrip(position + 2)
                     }
@@ -526,10 +581,57 @@ class ImageViewerActivity : BaseActivity() {
             val key = "img_full_${item.uri}_${decodeWidth}x$decodeHeight"
             if (BitmapCache.getBitmapFromMemCache(key) != null) return
             try {
-                ImageRepository.decodeSampledBitmap(applicationContext, item.uri, decodeWidth, decodeHeight)?.let {
+                val bytes = ensureStripBytes(position).await() ?: return
+                ImageRepository.decodeSampledBitmap(bytes, decodeWidth, decodeHeight)?.let {
                     BitmapCache.addBitmapToMemCache(key, it)
                 }
             } catch (ignored: Exception) {
+            }
+        }
+    }
+
+    /** Bytes of an image, downloaded once and shared by prefetch and decode */
+    private fun ensureStripBytes(position: Int): Deferred<ByteArray?> {
+        images.getOrNull(position) ?: return stripIoScope.async { null }
+        return stripBytesJobs.getOrPut(position) {
+            stripIoScope.async {
+                stripBytes.get(position)?.let { return@async it }
+                val uri = images.getOrNull(position)?.uri ?: return@async null
+                val loaded = ImageRepository.loadBytes(applicationContext, uri)
+                loaded?.let { stripBytes.put(position, it) }
+                loaded
+            }
+        }
+    }
+
+    /**
+     * Prefetches every image ratio, nearest to the current image first, then
+     * refreshes the strip cell heights once all sizes are known.
+     */
+    private fun startStripSizePrefetch() {
+        sizePrefetchJob?.cancel()
+        sizePrefetchJob = stripIoScope.launch {
+            val count = images.size
+            val ordered = ArrayList<Int>(count)
+            for (d in 0 until count) {
+                if (currentIndex + d < count) ordered.add(currentIndex + d)
+                if (d != 0 && currentIndex - d >= 0) ordered.add(currentIndex - d)
+            }
+            for (position in ordered) {
+                if (stripSizes.containsKey(position)) continue
+                try {
+                    val bytes = ensureStripBytes(position).await() ?: run {
+                        stripSizes[position] = DEFAULT_RATIO
+                        continue
+                    }
+                    val size = runCatching { ImageRepository.decodeBounds(bytes) }.getOrNull()
+                    stripSizes[position] = if (size != null && size.first > 0) size.second.toFloat() / size.first else DEFAULT_RATIO
+                } catch (ignored: Exception) {
+                    stripSizes[position] = DEFAULT_RATIO
+                }
+            }
+            withContext(Dispatchers.Main) {
+                if (mode == MODE_CONTINUOUS) binding.strip.adapter?.notifyItemRangeChanged(0, count)
             }
         }
     }
@@ -560,7 +662,12 @@ class ImageViewerActivity : BaseActivity() {
                 .setPositiveButton(android.R.string.ok) { _, _ ->
                     smbPromptShowing = false
                     SmbImageLoader.storeCredential(host, userEdit.text.toString(), passEdit.text.toString())
+                    // let the strip retry with the new credentials
+                    stripSizes.clear()
+                    stripBytes.evictAll()
+                    stripBytesJobs.clear()
                     refreshCurrentImage()
+                    if (mode == MODE_CONTINUOUS) startStripSizePrefetch()
                 }
                 .setNegativeButton(android.R.string.cancel) { _, _ -> smbPromptShowing = false }
                 .setOnCancelListener { smbPromptShowing = false }

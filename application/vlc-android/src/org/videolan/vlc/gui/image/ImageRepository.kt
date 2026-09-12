@@ -124,6 +124,66 @@ object ImageRepository {
     }
 
     /**
+     * Downloads an image into memory (capped). The result can be decoded
+     * repeatedly without re-downloading.
+     */
+    fun loadBytes(context: Context, uri: Uri): ByteArray? {
+        return try {
+            when (uri.scheme) {
+                "smb" -> readAll(SmbImageLoader.openStream(uri))
+                "content" -> context.contentResolver.openInputStream(uri)?.use { readAllStream(it) }
+                else -> {
+                    val path = if (uri.scheme == "file") uri.path ?: uri.toString() else uri.toString()
+                    readAllStream(java.io.FileInputStream(path))
+                }
+            }
+        } catch (e: SmbImageLoader.SmbAuthRequiredException) {
+            throw e
+        } catch (ignored: Exception) {
+            null
+        }
+    }
+
+    private fun readAllStream(stream: InputStream): ByteArray? {
+        return try {
+            stream.use {
+                val out = ByteArrayOutputStream()
+                val buffer = ByteArray(64 * 1024)
+                var total = 0L
+                while (true) {
+                    val read = it.read(buffer)
+                    if (read <= 0) break
+                    total += read
+                    if (total > MAX_BYTES) return null
+                    out.write(buffer, 0, read)
+                }
+                out.toByteArray()
+            }
+        } catch (ignored: Exception) {
+            null
+        }
+    }
+
+    /** Image dimensions from already downloaded bytes, without decoding the image */
+    fun decodeBounds(bytes: ByteArray): Pair<Int, Int> {
+        val bounds = BitmapFactory.Options()
+        bounds.inJustDecodeBounds = true
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+        return Pair(bounds.outWidth, bounds.outHeight)
+    }
+
+    /** Decodes a sampled bitmap from already downloaded bytes */
+    fun decodeSampledBitmap(bytes: ByteArray, reqWidth: Int, reqHeight: Int): Bitmap? {
+        val bounds = BitmapFactory.Options()
+        bounds.inJustDecodeBounds = true
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+        val options = BitmapFactory.Options()
+        options.inSampleSize = computeInSampleSize(bounds, reqWidth, reqHeight)
+        return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
+    }
+
+    /**
      * Decodes any image uri: local paths, content providers and smb:// shares
      * (through the jcifs client). Returns null for unsupported schemes.
      */
