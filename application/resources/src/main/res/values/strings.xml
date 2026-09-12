@@ -1042,6 +1042,10 @@
     <string name="new_title">New title</string>
     <string name="browse">Browse</string>
     <string name="more">More</string>
+    <string name="image_browser">Images</string>
+    <string name="image_browser_empty">No image found</string>
+    <string name="image_counter_format">%1$d / %2$d</string>
+    <string name="image_share">Share image</string>
     <string name="favorites">Favorites</string>
     <string name="new_stream">New stream</string>
     <string name="add_to_group">Add to video group</string>

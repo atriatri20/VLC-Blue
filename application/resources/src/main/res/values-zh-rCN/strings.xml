@@ -1009,6 +1009,10 @@
     <string name="new_title">新标题</string>
     <string name="browse">浏览</string>
     <string name="more">更多</string>
+    <string name="image_browser">图片</string>
+    <string name="image_browser_empty">未找到图片</string>
+    <string name="image_counter_format">%1$d / %2$d</string>
+    <string name="image_share">分享图片</string>
     <string name="favorites">收藏</string>
     <string name="new_stream">新建串流</string>
     <string name="add_to_group">添加到视频分组</string>

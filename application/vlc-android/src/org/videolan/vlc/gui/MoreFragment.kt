@@ -50,6 +50,7 @@ import org.videolan.vlc.gui.helpers.ImageClick
 import org.videolan.vlc.gui.helpers.LongClick
 import org.videolan.vlc.gui.helpers.SimpleClick
 import org.videolan.vlc.gui.helpers.UiTools.showDonations
+import org.videolan.vlc.gui.image.ImageBrowserActivity
 import org.videolan.vlc.gui.network.IStreamsFragmentDelegate
 import org.videolan.vlc.gui.network.KeyboardListener
 import org.videolan.vlc.gui.network.MRLAdapter
@@ -163,6 +164,9 @@ class MoreFragment : BaseFragment(), IRefreshable, IHistory, IDialogManager,
 
         settingsButton.setOnClickListener {
             requireActivity().startActivityForResult(Intent(requireActivity(), PreferencesActivity::class.java), ACTIVITY_RESULT_PREFERENCES)
+        }
+        view.findViewById<View>(R.id.imagesButton).setOnClickListener {
+            startActivity(Intent(requireActivity(), ImageBrowserActivity::class.java))
         }
         aboutButton.setOnClickListener {
             val i = Intent(requireActivity(), SecondaryActivity::class.java)

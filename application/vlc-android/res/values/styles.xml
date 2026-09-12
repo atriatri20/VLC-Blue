@@ -493,6 +493,13 @@
 
     <style name="Theme.VLC.Player" parent="Theme.VLC.Player.7" />
 
+    <style name="Theme.VLC.ImageViewer" parent="Theme.MaterialComponents.NoActionBar">
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:windowLayoutInDisplayCutoutMode" tools:targetApi="p">shortEdges</item>
+    </style>
+
     <style name="Theme.VLC.Player.7" parent="Theme.MaterialComponents.NoActionBar">
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowFullscreen">true</item>

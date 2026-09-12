@@ -1012,6 +1012,25 @@
                 android:theme="@style/Theme.VLC"
                 android:windowSoftInputMode="stateVisible" />
         <activity
+                android:name=".gui.image.ImageBrowserActivity"
+                android:theme="@style/Theme.VLC" />
+        <activity
+                android:name=".gui.image.ImageViewerActivity"
+                android:theme="@style/Theme.VLC.ImageViewer"
+                android:exported="true"
+                android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|uiMode|keyboard|keyboardHidden|navigation">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+
+                <data android:mimeType="image/*"/>
+                <data android:scheme="content"/>
+                <data android:scheme="file"/>
+            </intent-filter>
+        </activity>
+        <activity
             android:name=".gui.BetaWelcomeActivity"
             android:theme="@style/Theme.VLC.SendCrashDialog"/>
         <activity
