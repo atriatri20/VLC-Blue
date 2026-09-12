@@ -109,6 +109,7 @@ class ImageViewerActivity : BaseActivity() {
     private var smbPromptShowing = false
     private var mode = MODE_PAGE_VERTICAL
     private var currentIndex = 0
+    private var stripPendingPositioning = false
     private var autoScrolling = false
     private var touchPaused = false
     private var autoSpeed = 3
@@ -149,7 +150,7 @@ class ImageViewerActivity : BaseActivity() {
         binding.strip.layoutManager = LinearLayoutManager(this)
         binding.strip.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrolled(rv: RecyclerView, dx: Int, dy: Int) {
-                if (mode != MODE_CONTINUOUS) return
+                if (mode != MODE_CONTINUOUS || stripPendingPositioning) return
                 val first = (rv.layoutManager as? LinearLayoutManager)?.findFirstVisibleItemPosition() ?: return
                 if (first in images.indices && first != currentIndex) {
                     currentIndex = first
@@ -215,8 +216,17 @@ class ImageViewerActivity : BaseActivity() {
             binding.pager.visibility = View.GONE
             binding.strip.visibility = View.VISIBLE
             binding.autoScrollFab.visibility = View.VISIBLE
+            // block the scroll listener while the strip settles, otherwise it
+            // overwrites currentIndex with 0 and the viewer opens at image 1
+            stripPendingPositioning = true
             binding.strip.adapter = StripAdapter(images)
-            (binding.strip.layoutManager as LinearLayoutManager).scrollToPositionWithOffset(currentIndex, 0)
+            (binding.strip.layoutManager as? LinearLayoutManager)?.scrollToPositionWithOffset(currentIndex, 0)
+            // re-assert after the first layout: a pending scroll issued before
+            // the RecyclerView has been measured can be lost
+            binding.strip.post {
+                (binding.strip.layoutManager as? LinearLayoutManager)?.scrollToPositionWithOffset(currentIndex, 0)
+                stripPendingPositioning = false
+            }
             syncFab()
             if (autoScrolling) startAutoScrollTick()
         } else {
