@@ -66,6 +66,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.videolan.libvlc.MediaPlayer
 import org.videolan.libvlc.interfaces.IMedia
+import kotlin.math.max
 import org.videolan.medialibrary.MLServiceLocator
 import org.videolan.medialibrary.interfaces.Medialibrary
 import org.videolan.medialibrary.interfaces.media.MediaWrapper
@@ -220,12 +221,14 @@ abstract class BaseBrowserFragment : MediaBrowserFragment<BrowserModel>(), IRefr
         }
         if (inCards) {
             val largeCards = Settings.getInstance(requireActivity()).getBoolean(BROWSER_LARGE_CARDS, false)
+            // nplayer-style: the card is exactly the configured width; the leftover
+            // space becomes the spacing, so the width setting always takes effect
+            val cardWidthPx = (Settings.getInstance(requireActivity()).getInt(BROWSER_CARD_WIDTH, 100).coerceIn(70, 200) *
+                    resources.displayMetrics.density).toInt()
+            val minGapPx = (6 * resources.displayMetrics.density).toInt()
+            val availableEstimate = if (binding.networkList.width > 0) binding.networkList.width else resources.displayMetrics.widthPixels
             val nbColumns = if (largeCards) {
-                // nplayer-style: fixed card width, columns adapt to the available width
-                val cardWidthDp = Settings.getInstance(requireActivity()).getInt(BROWSER_CARD_WIDTH, 100).coerceIn(70, 200)
-                val available = if (binding.networkList.width > 0) binding.networkList.width else resources.displayMetrics.widthPixels
-                val cardPx = ((cardWidthDp + 12) * resources.displayMetrics.density).toInt().coerceAtLeast(1) // + margins
-                (available / cardPx).coerceIn(2, 12)
+                max(2, availableEstimate / (cardWidthPx + 2 * minGapPx))
             } else resources.getInteger(R.integer.mobile_card_columns)
             val gridLayoutManager = GridLayoutManager(requireActivity(), nbColumns)
             gridLayoutManager.spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
@@ -239,10 +242,15 @@ abstract class BaseBrowserFragment : MediaBrowserFragment<BrowserModel>(), IRefr
                 override fun getItemOffsets(outRect: Rect, view: View, parent: RecyclerView, state: RecyclerView.State) {
                     super.getItemOffsets(outRect, view, parent, state)
                     if (largeCards) {
+                        // spacing adapts so that every card keeps the exact configured width
+                        val columns = (parent.layoutManager as? GridLayoutManager)?.spanCount ?: 1
+                        val gap = if (columns > 0) {
+                            ((parent.width - columns * cardWidthPx) / (columns * 2)).coerceAtLeast(4.dp)
+                        } else 4.dp
+                        outRect.left = gap
+                        outRect.right = gap
                         outRect.top = 10.dp
-                        outRect.bottom = 6.dp
-                        outRect.left = 6.dp
-                        outRect.right = 6.dp
+                        outRect.bottom = 8.dp
                     } else {
                         outRect.top = 8.dp
                         outRect.left = 4.dp
