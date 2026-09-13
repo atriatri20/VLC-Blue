@@ -123,12 +123,14 @@ class ImageViewerActivity : BaseActivity() {
     private var touchPaused = false
     private var autoSpeed = 3
     private var stripWidth = 0
+    private var stripDecodeWidth = 1080
+    private var stripDecodeHeight = 1920
     private var sizePrefetchJob: Job? = null
 
     // continuous strip: downloaded bytes (shared by prefetch and decode),
     // predicted height/width ratio per position, in-flight downloads
     private val stripIoScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val stripBytes = object : LruCache<Int, ByteArray>(48 * 1024 * 1024) {
+    private val stripBytes = object : LruCache<Int, ByteArray>(16 * 1024 * 1024) {
         override fun sizeOf(key: Int, value: ByteArray) = value.size
     }
     private val stripSizes = ConcurrentHashMap<Int, Float>()
@@ -239,6 +241,9 @@ class ImageViewerActivity : BaseActivity() {
             binding.strip.visibility = View.VISIBLE
             binding.autoScrollFab.visibility = View.VISIBLE
             stripWidth = binding.strip.width.takeIf { it > 0 } ?: resources.displayMetrics.widthPixels
+            // the strip has no zoom: screen-size decoding is enough, halves memory
+            stripDecodeWidth = resources.displayMetrics.widthPixels
+            stripDecodeHeight = resources.displayMetrics.heightPixels
             // block the scroll listener while the strip settles, otherwise it
             // overwrites currentIndex with 0 and the viewer opens at image 1
             stripPendingPositioning = true
@@ -543,8 +548,8 @@ class ImageViewerActivity : BaseActivity() {
                     var bitmap: Bitmap? = null
                     try {
                         val bytes = ensureStripBytes(position).await()
-                        bitmap = if (bytes != null) withContext(Dispatchers.IO) { ImageRepository.decodeSampledBitmap(bytes, decodeWidth, decodeHeight) }
-                        else withContext(Dispatchers.IO) { ImageRepository.decodeSampledBitmap(applicationContext, item.uri, decodeWidth, decodeHeight) }
+                        bitmap = if (bytes != null) withContext(Dispatchers.IO) { ImageRepository.decodeSampledBitmap(bytes, stripDecodeWidth, stripDecodeHeight) }
+                        else withContext(Dispatchers.IO) { ImageRepository.decodeSampledBitmap(applicationContext, item.uri, stripDecodeWidth, stripDecodeHeight) }
                     } catch (e: SmbImageLoader.SmbAuthRequiredException) {
                         withContext(Dispatchers.Main) { promptSmbCredentials(e.host) }
                     } catch (ignored: Exception) {
@@ -578,11 +583,11 @@ class ImageViewerActivity : BaseActivity() {
 
         private suspend fun prefetchStrip(position: Int) {
             val item = items.getOrNull(position) ?: return
-            val key = "img_full_${item.uri}_${decodeWidth}x$decodeHeight"
+            val key = "img_strip_${item.uri}_${stripDecodeWidth}x$stripDecodeHeight"
             if (BitmapCache.getBitmapFromMemCache(key) != null) return
             try {
                 val bytes = ensureStripBytes(position).await() ?: return
-                ImageRepository.decodeSampledBitmap(bytes, decodeWidth, decodeHeight)?.let {
+                ImageRepository.decodeSampledBitmap(bytes, stripDecodeWidth, stripDecodeHeight)?.let {
                     BitmapCache.addBitmapToMemCache(key, it)
                 }
             } catch (ignored: Exception) {
@@ -592,7 +597,9 @@ class ImageViewerActivity : BaseActivity() {
 
     /** Bytes of an image, downloaded once and shared by prefetch and decode */
     private fun ensureStripBytes(position: Int): Deferred<ByteArray?> {
-        images.getOrNull(position) ?: return stripIoScope.async { null }
+        stripBytes.get(position)?.let { cached ->
+            return stripIoScope.async { cached }
+        }
         return stripBytesJobs.getOrPut(position) {
             stripIoScope.async {
                 stripBytes.get(position)?.let { return@async it }
@@ -600,6 +607,10 @@ class ImageViewerActivity : BaseActivity() {
                 val loaded = ImageRepository.loadBytes(applicationContext, uri)
                 loaded?.let { stripBytes.put(position, it) }
                 loaded
+            }.apply {
+                // drop the finished job: its Deferred would otherwise pin the
+                // downloaded bytes in memory for the whole session
+                invokeOnCompletion { stripBytesJobs.remove(position) }
             }
         }
     }
