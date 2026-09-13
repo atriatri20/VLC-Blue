@@ -80,9 +80,6 @@ import org.videolan.resources.util.parcelable
 import org.videolan.tools.BROWSER_CARD_WIDTH
 import org.videolan.tools.BROWSER_DISPLAY_IN_CARDS
 import org.videolan.tools.BROWSER_HIDE_NAMES
-import org.videolan.tools.VIDEO_PLAYLIST_LOOP
-import org.videolan.tools.VIDEO_PLAYLIST_LOOP_MODE
-import android.support.v4.media.session.PlaybackStateCompat
 import org.videolan.tools.BROWSER_LARGE_CARDS
 import org.videolan.tools.BROWSER_SHOW_HIDDEN_FILES
 import org.videolan.tools.BROWSER_SHOW_ONLY_MULTIMEDIA
@@ -392,13 +389,6 @@ abstract class BaseBrowserFragment : MediaBrowserFragment<BrowserModel>(), IRefr
                 adapter.notifyDataSetChanged()
             }
 
-            VIDEO_PLAYLIST_LOOP -> {
-                Settings.getInstance(requireActivity()).putSingle(VIDEO_PLAYLIST_LOOP, value as Boolean)
-            }
-
-            VIDEO_PLAYLIST_LOOP_MODE -> {
-                Settings.getInstance(requireActivity()).edit().putInt(VIDEO_PLAYLIST_LOOP_MODE, value as Int).apply()
-            }
 
             CURRENT_SORT -> {
                 @Suppress("UNCHECKED_CAST") val sort = value as Pair<Int, Boolean>
@@ -750,7 +740,6 @@ abstract class BaseBrowserFragment : MediaBrowserFragment<BrowserModel>(), IRefr
                     largeCards = settings.getBoolean(BROWSER_LARGE_CARDS, false),
                     cardWidth = settings.getInt(BROWSER_CARD_WIDTH, 100),
                     hideNames = settings.getBoolean(BROWSER_HIDE_NAMES, false),
-                    videoLoop = settings.getBoolean(VIDEO_PLAYLIST_LOOP, true)
                 )
                     .show(requireActivity().supportFragmentManager, "DisplaySettingsDialog")
                 true
@@ -813,12 +802,9 @@ abstract class BaseBrowserFragment : MediaBrowserFragment<BrowserModel>(), IRefr
             }
         } else {
             mediaWrapper.removeFlags(MediaWrapper.MEDIA_FORCE_AUDIO)
-            // video list loop: tapping a video plays the folder's videos as a looping
-            // list, whatever the default playback action is (PLAY or PLAY_ALL)
-            val playbackAction = DefaultPlaybackActionMediaType.FILE.getCurrentPlaybackAction(Settings.getInstance(requireActivity()))
-            if (mediaWrapper.type == MediaWrapper.TYPE_VIDEO
-                    && Settings.getInstance(requireActivity()).getBoolean(VIDEO_PLAYLIST_LOOP, true)
-                    && (playbackAction == DefaultPlaybackAction.PLAY || playbackAction == DefaultPlaybackAction.PLAY_ALL)) {
+            // video list playback: tapping a video plays the folder's videos as a
+            // list; the loop mode itself is controlled by the player's loop button
+            if (mediaWrapper.type == MediaWrapper.TYPE_VIDEO) {
                 lifecycleScope.launch {
                     val videos = viewModel.dataset.getList()
                             .filterIsInstance<MediaWrapper>()
@@ -828,8 +814,6 @@ abstract class BaseBrowserFragment : MediaBrowserFragment<BrowserModel>(), IRefr
                                     addFlags(MediaWrapper.MEDIA_NO_PARSE)
                             } }
                     val index = videos.indexOfFirst { it == mediaWrapper }
-                    // the repeat mode (single/list loop) is controlled by the
-                    // player's own loop button and stays untouched here
                     MediaUtils.openList(requireContext(), videos, index.coerceAtLeast(0))
                 }
                 return
@@ -852,23 +836,7 @@ abstract class BaseBrowserFragment : MediaBrowserFragment<BrowserModel>(), IRefr
                             addFlags(MediaWrapper.MEDIA_NO_PARSE)
                     }
                     when (DefaultPlaybackActionMediaType.FILE.getCurrentPlaybackAction(Settings.getInstance(requireActivity()))) {
-                        DefaultPlaybackAction.PLAY -> {
-                            android.util.Log.d("VLCLoop", "click video: loop=" + Settings.getInstance(requireActivity()).getBoolean(VIDEO_PLAYLIST_LOOP, true))
-                            if (Settings.getInstance(requireActivity()).getBoolean(VIDEO_PLAYLIST_LOOP, true)) {
-                                // play the folder's videos as a looping list, starting at the tapped one
-                                val videos = viewModel.dataset.getList()
-                                        .filterIsInstance<MediaWrapper>()
-                                        .filter { it.type == MediaWrapper.TYPE_VIDEO }
-                                        .map { getMediaWithMeta(it).apply {
-                                            if (Settings.getInstance(requireActivity()).getBoolean(KEY_QUICK_PLAY_DEFAULT, false))
-                                                addFlags(MediaWrapper.MEDIA_NO_PARSE)
-                                        } }
-                                val index = videos.indexOfFirst { it == media }
-                                android.util.Log.d("VLCLoop", "openList videos=" + videos.size + " index=" + index + " -> set repeat ALL")
-                                Settings.getInstance(requireActivity()).edit().putInt(VIDEO_PLAYLIST_LOOP_MODE, PlaybackStateCompat.REPEAT_MODE_ALL).apply()
-                                MediaUtils.openList(requireContext(), videos, index.coerceAtLeast(0))
-                            } else MediaUtils.openMedia(requireContext(), getMediaWithMeta(media))
-                        }
+                        DefaultPlaybackAction.PLAY -> MediaUtils.openMedia(requireContext(), getMediaWithMeta(media))
                         DefaultPlaybackAction.ADD_TO_QUEUE -> MediaUtils.appendMedia(activity, media)
                         DefaultPlaybackAction.INSERT_NEXT -> MediaUtils.insertNext(activity, media)
                         else -> {

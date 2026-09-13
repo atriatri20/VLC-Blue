@@ -416,51 +416,6 @@
                     app:layout_constraintTop_toTopOf="@+id/hide_names_group" />
 
             <View
-                    android:id="@+id/video_loop_group"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:background="?attr/selectableItemBackground"
-                    android:minHeight="48dp"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintHorizontal_bias="0.0"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toBottomOf="@+id/hide_names_group"
-                    app:layout_goneMarginTop="16dp" />
-
-            <ImageView
-                    android:id="@+id/video_loop_image"
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:layout_marginStart="24dp"
-                    app:layout_constraintBottom_toBottomOf="@+id/video_loop_group"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toTopOf="@+id/video_loop_group"
-                    app:srcCompat="@drawable/ic_auto_scroll" />
-
-            <TextView
-                    android:id="@+id/video_loop_text"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="24dp"
-                    android:layout_marginEnd="16dp"
-                    android:text="@string/video_loop_title"
-                    android:textColor="?attr/font_default"
-                    android:textSize="16sp"
-                    app:layout_constraintBottom_toBottomOf="@+id/video_loop_group"
-                    app:layout_constraintEnd_toStartOf="@+id/video_loop_checkbox"
-                    app:layout_constraintStart_toEndOf="@id/video_loop_image"
-                    app:layout_constraintTop_toTopOf="@+id/video_loop_group" />
-
-            <CheckBox
-                    android:id="@+id/video_loop_checkbox"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginEnd="4dp"
-                    app:layout_constraintBottom_toBottomOf="@+id/video_loop_group"
-                    app:layout_constraintEnd_toEndOf="@+id/video_loop_group"
-                    app:layout_constraintTop_toTopOf="@+id/video_loop_group" />
-
-            <View
                     android:id="@+id/only_favs_group"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
@@ -469,7 +424,7 @@
                     app:layout_constraintEnd_toEndOf="parent"
                     app:layout_constraintHorizontal_bias="0.0"
                     app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toBottomOf="@+id/video_loop_group"
+                    app:layout_constraintTop_toBottomOf="@+id/hide_names_group"
                     app:layout_goneMarginTop="16dp" />
 
             <ImageView

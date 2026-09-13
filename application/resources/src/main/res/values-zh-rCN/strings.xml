@@ -1026,7 +1026,6 @@
     <string name="large_cards_title">大尺寸缩略图 (2:3)</string>
     <string name="card_width_title">卡片宽度</string>
     <string name="hide_names_title">隐藏文件名</string>
-    <string name="video_loop_title">视频列表循环</string>
     <string name="favorites">收藏</string>
     <string name="new_stream">新建串流</string>
     <string name="add_to_group">添加到视频分组</string>

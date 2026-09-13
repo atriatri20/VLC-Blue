@@ -348,9 +348,6 @@ const val BROWSER_LARGE_CARDS = "browser_large_cards"
 const val BROWSER_CARD_WIDTH = "browser_card_width"
 const val BROWSER_HIDE_NAMES = "browser_hide_names"
 
-/** Shared with PlaylistManager (video_repeat_mode): play a folder's videos as a looping list */
-const val VIDEO_PLAYLIST_LOOP = "video_playlist_loop"
-const val VIDEO_PLAYLIST_LOOP_MODE = "video_repeat_mode"
 
 // Albums
 const val ALBUMS_SHOW_TRACK_NUMBER = "albums_show_track_number"
