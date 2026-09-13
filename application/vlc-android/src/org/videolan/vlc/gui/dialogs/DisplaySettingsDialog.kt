@@ -53,6 +53,7 @@ import org.videolan.resources.GROUP_VIDEOS_NONE
 import org.videolan.tools.setGone
 import org.videolan.tools.BROWSER_CARD_WIDTH
 import org.videolan.tools.BROWSER_HIDE_NAMES
+import org.videolan.tools.VIDEO_PLAYLIST_LOOP
 import org.videolan.vlc.R
 import org.videolan.vlc.databinding.DialogDisplaySettingsBinding
 import org.videolan.vlc.databinding.SortDisplaySettingBinding
@@ -87,6 +88,7 @@ class DisplaySettingsDialog : VLCBottomSheetDialogFragment() {
     private var largeCards: Boolean? = null
     private var cardWidth: Int? = null
     private var hideNames: Boolean? = null
+    private var videoLoop: Boolean? = null
     private var onlyFavs: Boolean? = null
     private lateinit var sorts: ArrayList<Int>
     private var currentSort: Int = -1
@@ -106,13 +108,14 @@ class DisplaySettingsDialog : VLCBottomSheetDialogFragment() {
 
     companion object {
 
-        fun newInstance(displayInCards: Boolean?, showAllArtists: Boolean? = null, onlyFavs: Boolean?, sorts: List<Int>, currentSort: Int, currentSortDesc: Boolean, videoGroup: String? = null, showOnlyMultimediaFiles:Boolean? = null, showTrackNumber:Boolean? = null, showHiddenFiles:Boolean? = null, defaultPlaybackActions: List<DefaultPlaybackAction>? = null, defaultActionType: String? = null, largeCards: Boolean? = null, cardWidth: Int? = null, hideNames: Boolean? = null): DisplaySettingsDialog {
+        fun newInstance(displayInCards: Boolean?, showAllArtists: Boolean? = null, onlyFavs: Boolean?, sorts: List<Int>, currentSort: Int, currentSortDesc: Boolean, videoGroup: String? = null, showOnlyMultimediaFiles:Boolean? = null, showTrackNumber:Boolean? = null, showHiddenFiles:Boolean? = null, defaultPlaybackActions: List<DefaultPlaybackAction>? = null, defaultActionType: String? = null, largeCards: Boolean? = null, cardWidth: Int? = null, hideNames: Boolean? = null, videoLoop: Boolean? = null): DisplaySettingsDialog {
             return DisplaySettingsDialog().apply {
                 arguments = bundleOf(SORTS to sorts, CURRENT_SORT to currentSort, CURRENT_SORT_DESC to currentSortDesc, VIDEO_GROUPING to videoGroup)
                 if (displayInCards != null) arguments!!.putBoolean(DISPLAY_IN_CARDS, displayInCards)
                 if (largeCards != null) arguments!!.putBoolean(BROWSER_LARGE_CARDS, largeCards)
                 if (cardWidth != null) arguments!!.putInt(BROWSER_CARD_WIDTH, cardWidth)
                 if (hideNames != null) arguments!!.putBoolean(BROWSER_HIDE_NAMES, hideNames)
+                if (videoLoop != null) arguments!!.putBoolean(VIDEO_PLAYLIST_LOOP, videoLoop)
                 if (onlyFavs != null) arguments!!.putBoolean(ONLY_FAVS, onlyFavs)
                 if (showAllArtists != null) arguments!!.putBoolean(SHOW_ALL_ARTISTS, showAllArtists)
                 if (showOnlyMultimediaFiles != null) arguments!!.putBoolean(SHOW_ONLY_MULTIMEDIA_FILES, showOnlyMultimediaFiles)
@@ -141,6 +144,7 @@ class DisplaySettingsDialog : VLCBottomSheetDialogFragment() {
         largeCards = if (arguments?.containsKey(BROWSER_LARGE_CARDS) == true) arguments?.getBoolean(BROWSER_LARGE_CARDS) else null
         cardWidth = if (arguments?.containsKey(BROWSER_CARD_WIDTH) == true) arguments?.getInt(BROWSER_CARD_WIDTH) else null
         hideNames = if (arguments?.containsKey(BROWSER_HIDE_NAMES) == true) arguments?.getBoolean(BROWSER_HIDE_NAMES) else null
+        videoLoop = if (arguments?.containsKey(VIDEO_PLAYLIST_LOOP) == true) arguments?.getBoolean(VIDEO_PLAYLIST_LOOP) else null
         onlyFavs = if (arguments?.containsKey(ONLY_FAVS) == true) arguments?.getBoolean(ONLY_FAVS) else null
         sorts = arguments?.getIntegerArrayList(SORTS)
                 ?: throw IllegalStateException("Sorts should be provided")
@@ -190,6 +194,7 @@ class DisplaySettingsDialog : VLCBottomSheetDialogFragment() {
         updateShowAllFiles()
         updateShowTrackNumbers()
         updateShowHiddenFiles()
+        updateVideoLoop()
         updateSorts()
         updateDefaultActions()
 
@@ -225,6 +230,14 @@ class DisplaySettingsDialog : VLCBottomSheetDialogFragment() {
         binding.hideNamesCheckbox.setOnCheckedChangeListener { _, isChecked ->
             hideNames = isChecked
             lifecycleScope.launch { displaySettingsViewModel.send(BROWSER_HIDE_NAMES, hideNames!!) }
+        }
+
+        binding.videoLoopGroup.setOnClickListener {
+            binding.videoLoopCheckbox.isChecked = !binding.videoLoopCheckbox.isChecked
+        }
+        binding.videoLoopCheckbox.setOnCheckedChangeListener { _, isChecked ->
+            videoLoop = isChecked
+            lifecycleScope.launch { displaySettingsViewModel.send(VIDEO_PLAYLIST_LOOP, videoLoop!!) }
         }
         binding.showAllArtistGroup.setOnClickListener {
             binding.showAllArtistCheckbox.isChecked = !binding.showAllArtistCheckbox.isChecked
@@ -376,6 +389,20 @@ class DisplaySettingsDialog : VLCBottomSheetDialogFragment() {
         }
         binding.cardWidthSeek.progress = (cardWidth!! - 80) / 10
         binding.cardWidthText.text = getString(R.string.card_width_title) + "  ${cardWidth}dp"
+    }
+
+    /**
+     * Update the view for the "video list loop" item
+     */
+    private fun updateVideoLoop() {
+        if (videoLoop == null) {
+            binding.videoLoopGroup.setGone()
+            binding.videoLoopImage.setGone()
+            binding.videoLoopText.setGone()
+            binding.videoLoopCheckbox.setGone()
+            return
+        }
+        binding.videoLoopCheckbox.isChecked = videoLoop!!
     }
 
     /**

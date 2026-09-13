@@ -80,6 +80,9 @@ import org.videolan.resources.util.parcelable
 import org.videolan.tools.BROWSER_CARD_WIDTH
 import org.videolan.tools.BROWSER_DISPLAY_IN_CARDS
 import org.videolan.tools.BROWSER_HIDE_NAMES
+import org.videolan.tools.VIDEO_PLAYLIST_LOOP
+import org.videolan.tools.VIDEO_PLAYLIST_LOOP_MODE
+import android.support.v4.media.session.PlaybackStateCompat
 import org.videolan.tools.BROWSER_LARGE_CARDS
 import org.videolan.tools.BROWSER_SHOW_HIDDEN_FILES
 import org.videolan.tools.BROWSER_SHOW_ONLY_MULTIMEDIA
@@ -387,6 +390,14 @@ abstract class BaseBrowserFragment : MediaBrowserFragment<BrowserModel>(), IRefr
                 Settings.getInstance(requireActivity()).putSingle(BROWSER_HIDE_NAMES, value as Boolean)
                 binding.networkList.recycledViewPool.clear()
                 adapter.notifyDataSetChanged()
+            }
+
+            VIDEO_PLAYLIST_LOOP -> {
+                Settings.getInstance(requireActivity()).putSingle(VIDEO_PLAYLIST_LOOP, value as Boolean)
+            }
+
+            VIDEO_PLAYLIST_LOOP_MODE -> {
+                Settings.getInstance(requireActivity()).edit().putInt(VIDEO_PLAYLIST_LOOP_MODE, value as Int).apply()
             }
 
             CURRENT_SORT -> {
@@ -738,7 +749,8 @@ abstract class BaseBrowserFragment : MediaBrowserFragment<BrowserModel>(), IRefr
                     defaultActionType = getString(R.string.files),
                     largeCards = settings.getBoolean(BROWSER_LARGE_CARDS, false),
                     cardWidth = settings.getInt(BROWSER_CARD_WIDTH, 100),
-                    hideNames = settings.getBoolean(BROWSER_HIDE_NAMES, false)
+                    hideNames = settings.getBoolean(BROWSER_HIDE_NAMES, false),
+                    videoLoop = settings.getBoolean(VIDEO_PLAYLIST_LOOP, true)
                 )
                     .show(requireActivity().supportFragmentManager, "DisplaySettingsDialog")
                 true
@@ -819,7 +831,21 @@ abstract class BaseBrowserFragment : MediaBrowserFragment<BrowserModel>(), IRefr
                             addFlags(MediaWrapper.MEDIA_NO_PARSE)
                     }
                     when (DefaultPlaybackActionMediaType.FILE.getCurrentPlaybackAction(Settings.getInstance(requireActivity()))) {
-                        DefaultPlaybackAction.PLAY -> MediaUtils.openMedia(requireContext(), getMediaWithMeta(media))
+                        DefaultPlaybackAction.PLAY -> {
+                            if (Settings.getInstance(requireActivity()).getBoolean(VIDEO_PLAYLIST_LOOP, true)) {
+                                // play the folder's videos as a looping list, starting at the tapped one
+                                val videos = viewModel.dataset.getList()
+                                        .filterIsInstance<MediaWrapper>()
+                                        .filter { it.type == MediaWrapper.TYPE_VIDEO }
+                                        .map { getMediaWithMeta(it).apply {
+                                            if (Settings.getInstance(requireActivity()).getBoolean(KEY_QUICK_PLAY_DEFAULT, false))
+                                                addFlags(MediaWrapper.MEDIA_NO_PARSE)
+                                        } }
+                                val index = videos.indexOfFirst { it == media }
+                                Settings.getInstance(requireActivity()).edit().putInt(VIDEO_PLAYLIST_LOOP_MODE, PlaybackStateCompat.REPEAT_MODE_ALL).apply()
+                                MediaUtils.openList(requireContext(), videos, index.coerceAtLeast(0))
+                            } else MediaUtils.openMedia(requireContext(), getMediaWithMeta(media))
+                        }
                         DefaultPlaybackAction.ADD_TO_QUEUE -> MediaUtils.appendMedia(activity, media)
                         DefaultPlaybackAction.INSERT_NEXT -> MediaUtils.insertNext(activity, media)
                         else -> {
