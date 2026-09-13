@@ -813,6 +813,27 @@ abstract class BaseBrowserFragment : MediaBrowserFragment<BrowserModel>(), IRefr
             }
         } else {
             mediaWrapper.removeFlags(MediaWrapper.MEDIA_FORCE_AUDIO)
+            // video list loop: tapping a video plays the folder's videos as a looping
+            // list, whatever the default playback action is (PLAY or PLAY_ALL)
+            val playbackAction = DefaultPlaybackActionMediaType.FILE.getCurrentPlaybackAction(Settings.getInstance(requireActivity()))
+            if (mediaWrapper.type == MediaWrapper.TYPE_VIDEO
+                    && Settings.getInstance(requireActivity()).getBoolean(VIDEO_PLAYLIST_LOOP, true)
+                    && (playbackAction == DefaultPlaybackAction.PLAY || playbackAction == DefaultPlaybackAction.PLAY_ALL)) {
+                lifecycleScope.launch {
+                    val videos = viewModel.dataset.getList()
+                            .filterIsInstance<MediaWrapper>()
+                            .filter { it.type == MediaWrapper.TYPE_VIDEO }
+                            .map { getMediaWithMeta(it).apply {
+                                if (Settings.getInstance(requireActivity()).getBoolean(KEY_QUICK_PLAY_DEFAULT, false))
+                                    addFlags(MediaWrapper.MEDIA_NO_PARSE)
+                            } }
+                    val index = videos.indexOfFirst { it == mediaWrapper }
+                    android.util.Log.d("VLCLoop", "list loop: videos=" + videos.size + " index=" + index + " -> REPEAT_ALL")
+                    Settings.getInstance(requireActivity()).edit().putInt(VIDEO_PLAYLIST_LOOP_MODE, PlaybackStateCompat.REPEAT_MODE_ALL).apply()
+                    MediaUtils.openList(requireContext(), videos, index.coerceAtLeast(0))
+                }
+                return
+            }
             if (mediaWrapper.type == MediaWrapper.TYPE_DIR) browse(mediaWrapper, true)
             else if (BrowserThumbnails.isImage(mediaWrapper)) {
                 // Pure image browsing: open the vertical viewer on every image of the folder
@@ -832,6 +853,7 @@ abstract class BaseBrowserFragment : MediaBrowserFragment<BrowserModel>(), IRefr
                     }
                     when (DefaultPlaybackActionMediaType.FILE.getCurrentPlaybackAction(Settings.getInstance(requireActivity()))) {
                         DefaultPlaybackAction.PLAY -> {
+                            android.util.Log.d("VLCLoop", "click video: loop=" + Settings.getInstance(requireActivity()).getBoolean(VIDEO_PLAYLIST_LOOP, true))
                             if (Settings.getInstance(requireActivity()).getBoolean(VIDEO_PLAYLIST_LOOP, true)) {
                                 // play the folder's videos as a looping list, starting at the tapped one
                                 val videos = viewModel.dataset.getList()
@@ -842,6 +864,7 @@ abstract class BaseBrowserFragment : MediaBrowserFragment<BrowserModel>(), IRefr
                                                 addFlags(MediaWrapper.MEDIA_NO_PARSE)
                                         } }
                                 val index = videos.indexOfFirst { it == media }
+                                android.util.Log.d("VLCLoop", "openList videos=" + videos.size + " index=" + index + " -> set repeat ALL")
                                 Settings.getInstance(requireActivity()).edit().putInt(VIDEO_PLAYLIST_LOOP_MODE, PlaybackStateCompat.REPEAT_MODE_ALL).apply()
                                 MediaUtils.openList(requireContext(), videos, index.coerceAtLeast(0))
                             } else MediaUtils.openMedia(requireContext(), getMediaWithMeta(media))

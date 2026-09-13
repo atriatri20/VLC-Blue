@@ -293,6 +293,7 @@ object MediaUtils {
 
     @JvmOverloads
     fun openList(context: Context?, list: List<MediaWrapper>, position: Int, shuffle: Boolean = false) {
+        android.util.Log.d("VLCLoop", "openList size=" + list.size + " position=" + position)
         if (list.isEmpty() || context == null) return
         SuspendDialogCallback(context) { service ->
             val realPos = if (shuffle) SecureRandom().nextInt(list.size)

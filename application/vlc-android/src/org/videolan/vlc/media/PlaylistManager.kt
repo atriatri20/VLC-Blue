@@ -242,6 +242,7 @@ class PlaylistManager(val service: PlaybackService) : MediaWrapperList.EventList
 
     @MainThread
     suspend fun load(list: List<MediaWrapper>, position: Int, mlUpdate: Boolean = false, avoidErasingStop:Boolean = false) {
+        android.util.Log.d("VLCLoop", "load list size=" + list.size + " position=" + position)
         saveMediaList()
         savePosition()
         mediaList.removeEventListener(this@PlaylistManager)
@@ -365,6 +366,7 @@ class PlaylistManager(val service: PlaybackService) : MediaWrapperList.EventList
 
     @MainThread
     fun next(force : Boolean = false) {
+        android.util.Log.d("VLCLoop", "next force=" + force + " nextIndex=" + nextIndex + " repeating=" + repeating.value + " size=" + mediaList.size())
         mediaList.getMedia(currentIndex)?.let {
             if (it.type == MediaWrapper.TYPE_VIDEO || it.isPodcast) saveMediaMeta()
         }
@@ -389,6 +391,7 @@ class PlaylistManager(val service: PlaybackService) : MediaWrapperList.EventList
     }
 
     fun stop(systemExit: Boolean = false, video: Boolean = false) {
+        android.util.Log.d("VLCLoop", "STOP called systemExit=" + systemExit)
         clearABRepeat()
         if (stopAfter != -1) Settings.getInstance(AppContextProvider.appContext).putSingle(AUDIO_STOP_AFTER, stopAfter)
         stopAfter = -1
@@ -455,6 +458,7 @@ class PlaylistManager(val service: PlaybackService) : MediaWrapperList.EventList
      * Will set the repeating variable from the value that has been saved in settings
      */
     private fun setRepeatTypeFromSettings() {
+        android.util.Log.d("VLCLoop", "setRepeatTypeFromSettings currentType=" + (if (getCurrentMedia() == null) "null" else getCurrentMedia()!!.type.toString()))
         AppScope.launch {
             repeating.emit(if (getCurrentMedia()?.type == MediaWrapper.TYPE_VIDEO) {
                 settings.getInt(PLAYLIST_VIDEO_REPEAT_MODE_KEY, PlaybackStateCompat.REPEAT_MODE_NONE)
@@ -481,6 +485,7 @@ class PlaylistManager(val service: PlaybackService) : MediaWrapperList.EventList
     }
 
     suspend fun playIndex(index: Int, flags: Int = 0, forceResume:Boolean = false, forceRestart:Boolean = false) {
+        android.util.Log.d("VLCLoop", "playIndex index=" + index + " size=" + mediaList.size())
         videoBackground = videoBackground || (!player.isVideoPlaying() && player.canSwitchToVideo())
         if (mediaList.size() == 0) {
             Log.w(TAG, "Warning: empty media list, nothing to play !")
@@ -1221,6 +1226,7 @@ class PlaylistManager(val service: PlaybackService) : MediaWrapperList.EventList
                     playingState.value = true
                 }
                 MediaPlayer.Event.EndReached -> {
+                    android.util.Log.d("VLCLoop", "EndReached currentIndex=" + currentIndex + " nextIndex=" + nextIndex + " repeating=" + repeating.value)
                     clearABRepeat()
                     getCurrentMedia()?.addFlags(MediaWrapper.MEDIA_FROM_START)
                     if (currentIndex != nextIndex) {
@@ -1236,6 +1242,7 @@ class PlaylistManager(val service: PlaybackService) : MediaWrapperList.EventList
                     } else {
                         if (isBenchmark) player.setCurrentStats()
                         determinePrevAndNextIndices(true)
+                        android.util.Log.d("VLCLoop", "after determine nextIndex=" + nextIndex + " repeating=" + repeating.value)
                         if (!hasNext()) getCurrentMedia()?.let {
                             if (AndroidDevices.isAndroidTv && AndroidUtil.isOOrLater && !isAudioList()) {
                                 setResumeProgram(service.applicationContext, it)
