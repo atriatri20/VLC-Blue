@@ -41,6 +41,7 @@ import org.videolan.vlc.gui.image.SmbMediaDataSource
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
+import kotlin.math.max
 
 /**
  * Row thumbnails for the file and network browsers.
@@ -217,8 +218,21 @@ object BrowserThumbnails {
                 "content" -> retriever.setDataSource(context, uri)
                 else -> retriever.setDataSource(if (uri.scheme == "file") uri.path ?: uri.toString() else uri.toString())
             }
-            val frame = retriever.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC) ?: return null
             val durationMs = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
+            // skip dark intros: sample at 10% of the duration (>= 1s, <= 3s)
+            val sampleUs = if (durationMs > 0) {
+                max((durationMs * 100L) / 1000, 1_000_000L).coerceAtMost(3_000_000L)
+            } else 0L
+            var frame = retriever.getFrameAtTime(sampleUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+            // if the frame is nearly black and the video is long enough, retry at 25%
+            if (frame != null && isMostlyBlack(frame) && durationMs > 4000) {
+                val retry = retriever.getFrameAtTime(durationMs * 1000L / 4, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                if (retry != null && !isMostlyBlack(retry)) {
+                    if (retry !== frame) frame.recycle()
+                    frame = retry
+                }
+            }
+            frame ?: return null
             withDurationBadge(frame, durationMs)
         } catch (ignored: Exception) {
             null
@@ -228,6 +242,24 @@ object BrowserThumbnails {
             } catch (ignored: Exception) {
             }
         }
+    }
+
+    /** average luma of a downscaled copy, to detect black intro frames */
+    private fun isMostlyBlack(bitmap: Bitmap): Boolean {
+        val w = 8
+        val h = 8
+        val small = Bitmap.createScaledBitmap(bitmap, w, h, true)
+        val pixels = IntArray(w * h)
+        small.getPixels(pixels, 0, w, 0, 0, w, h)
+        if (small !== bitmap) small.recycle()
+        var total = 0L
+        for (pixel in pixels) {
+            val r = (pixel shr 16) and 0xFF
+            val g = (pixel shr 8) and 0xFF
+            val b = pixel and 0xFF
+            total += (r * 299L + g * 587L + b * 114L) / 1000L
+        }
+        return total / (w * h) < 14L
     }
 
     private fun withDurationBadge(frame: Bitmap, durationMs: Long): Bitmap {
