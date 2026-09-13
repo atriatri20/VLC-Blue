@@ -229,7 +229,7 @@
                 app:asyncText="@{filename ?? item.title}"
                 android:textColor="?attr/list_title"
                 android:textSize="13sp"
-                android:visibility="@{hideText ? View.GONE : View.VISIBLE}"
+                android:visibility="@{hideText ? View.INVISIBLE : View.VISIBLE}"
                 tools:text="filename" />
 
     </LinearLayout>
