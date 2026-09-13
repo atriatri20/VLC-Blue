@@ -222,13 +222,14 @@ abstract class BaseBrowserFragment : MediaBrowserFragment<BrowserModel>(), IRefr
         if (inCards) {
             val largeCards = Settings.getInstance(requireActivity()).getBoolean(BROWSER_LARGE_CARDS, false)
             // nplayer-style: the card is exactly the configured width; the leftover
-            // space becomes the spacing, so the width setting always takes effect
-            val cardWidthPx = (Settings.getInstance(requireActivity()).getInt(BROWSER_CARD_WIDTH, 100).coerceIn(70, 200) *
+            // space becomes the spacing, so the width setting always takes effect.
+            // Column count floor is 1 (a single centered wide card is allowed).
+            val cardWidthPx = (Settings.getInstance(requireActivity()).getInt(BROWSER_CARD_WIDTH, 100).coerceIn(70, 500) *
                     resources.displayMetrics.density).toInt()
-            val minGapPx = (6 * resources.displayMetrics.density).toInt()
+            val minGapPx = (10 * resources.displayMetrics.density).toInt()
             val availableEstimate = if (binding.networkList.width > 0) binding.networkList.width else resources.displayMetrics.widthPixels
             val nbColumns = if (largeCards) {
-                max(2, availableEstimate / (cardWidthPx + 2 * minGapPx))
+                max(1, availableEstimate / (cardWidthPx + 2 * minGapPx))
             } else resources.getInteger(R.integer.mobile_card_columns)
             val gridLayoutManager = GridLayoutManager(requireActivity(), nbColumns)
             gridLayoutManager.spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
@@ -242,15 +243,16 @@ abstract class BaseBrowserFragment : MediaBrowserFragment<BrowserModel>(), IRefr
                 override fun getItemOffsets(outRect: Rect, view: View, parent: RecyclerView, state: RecyclerView.State) {
                     super.getItemOffsets(outRect, view, parent, state)
                     if (largeCards) {
-                        // spacing adapts so that every card keeps the exact configured width
+                        // spacing adapts so that every card keeps the exact configured width;
+                        // gap floor leaves room for the enlarged shadow
                         val columns = (parent.layoutManager as? GridLayoutManager)?.spanCount ?: 1
                         val gap = if (columns > 0) {
-                            ((parent.width - columns * cardWidthPx) / (columns * 2)).coerceAtLeast(4.dp)
-                        } else 4.dp
+                            ((parent.width - columns * cardWidthPx) / (columns * 2)).coerceAtLeast(12.dp)
+                        } else 12.dp
                         outRect.left = gap
                         outRect.right = gap
-                        outRect.top = 10.dp
-                        outRect.bottom = 8.dp
+                        outRect.top = 14.dp
+                        outRect.bottom = 10.dp
                     } else {
                         outRect.top = 8.dp
                         outRect.left = 4.dp

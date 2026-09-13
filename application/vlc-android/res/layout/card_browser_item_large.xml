@@ -85,10 +85,10 @@
     <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_margin="6dp"
+            android:layout_margin="10dp"
             android:id="@+id/browser_container"
-            app:cardCornerRadius="12dp"
-            app:cardElevation="4dp"
+            app:cardCornerRadius="20dp"
+            app:cardElevation="12dp"
             app:strokeWidth="0dp"
             app:cardBackgroundColor="?attr/background_default"
                 android:contentDescription="@{TalkbackUtil.INSTANCE.getDir(context, item, favorite)}"
