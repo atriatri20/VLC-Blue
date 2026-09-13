@@ -828,8 +828,8 @@ abstract class BaseBrowserFragment : MediaBrowserFragment<BrowserModel>(), IRefr
                                     addFlags(MediaWrapper.MEDIA_NO_PARSE)
                             } }
                     val index = videos.indexOfFirst { it == mediaWrapper }
-                    android.util.Log.d("VLCLoop", "list loop: videos=" + videos.size + " index=" + index + " -> REPEAT_ALL")
-                    Settings.getInstance(requireActivity()).edit().putInt(VIDEO_PLAYLIST_LOOP_MODE, PlaybackStateCompat.REPEAT_MODE_ALL).apply()
+                    // the repeat mode (single/list loop) is controlled by the
+                    // player's own loop button and stays untouched here
                     MediaUtils.openList(requireContext(), videos, index.coerceAtLeast(0))
                 }
                 return
