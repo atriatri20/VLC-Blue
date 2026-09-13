@@ -119,6 +119,7 @@ class ImageViewerActivity : BaseActivity() {
     private var mode = MODE_PAGE_VERTICAL
     private var currentIndex = 0
     private var stripPendingPositioning = false
+    private var scrubberDragging = false
     private var autoScrolling = false
     private var touchPaused = false
     private var autoSpeed = 3
@@ -180,6 +181,30 @@ class ImageViewerActivity : BaseActivity() {
                     currentIndex = first
                     updateOverlay()
                 }
+            }
+        })
+
+        binding.pageScrubber.setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: android.widget.SeekBar?, progress: Int, fromUser: Boolean) {
+                if (!fromUser || mode != MODE_CONTINUOUS || images.isEmpty()) return
+                currentIndex = progress.coerceIn(0, images.size - 1)
+                (binding.strip.layoutManager as? LinearLayoutManager)?.scrollToPosition(currentIndex)
+                updateOverlay()
+            }
+
+            override fun onStartTrackingTouch(seekBar: android.widget.SeekBar?) {
+                stripPendingPositioning = true
+                scrubberDragging = true
+                if (autoScrolling) {
+                    autoScrolling = false
+                    syncFab()
+                    stopAutoScrollTick()
+                }
+            }
+
+            override fun onStopTrackingTouch(seekBar: android.widget.SeekBar?) {
+                scrubberDragging = false
+                stripPendingPositioning = false
             }
         })
         binding.strip.addOnItemTouchListener(stripTouchListener)
@@ -257,12 +282,16 @@ class ImageViewerActivity : BaseActivity() {
                 if (binding.strip.width > 0) stripWidth = binding.strip.width
             }
             syncFab()
+            binding.pageScrubber.max = (images.size - 1).coerceAtLeast(0)
+            binding.pageScrubber.progress = currentIndex.coerceIn(0, images.size - 1)
+            binding.pageScrubber.visibility = if (overlayVisible) View.VISIBLE else View.GONE
             if (autoScrolling) startAutoScrollTick()
             startStripSizePrefetch()
         } else {
             autoScrolling = false
             sizePrefetchJob?.cancel()
             binding.strip.visibility = View.GONE
+            binding.pageScrubber.visibility = View.GONE
             binding.autoScrollFab.visibility = View.GONE
             binding.pager.visibility = View.VISIBLE
             binding.pager.orientation = if (mode == MODE_PAGE_HORIZONTAL) ViewPager2.ORIENTATION_HORIZONTAL
@@ -278,11 +307,18 @@ class ImageViewerActivity : BaseActivity() {
         val item = images.getOrNull(currentIndex)
         binding.imageName.text = item?.name ?: ""
         binding.imageCounter.text = if (images.isEmpty()) "" else getString(R.string.image_counter_format, currentIndex + 1, images.size)
+        if (mode == MODE_CONTINUOUS && images.isNotEmpty() && !scrubberDragging) {
+            binding.pageScrubber.max = (images.size - 1).coerceAtLeast(0)
+            binding.pageScrubber.progress = currentIndex.coerceIn(0, images.size - 1)
+        }
     }
 
     fun toggleOverlay() {
         overlayVisible = !overlayVisible
         binding.overlay.visibility = if (overlayVisible) View.VISIBLE else View.GONE
+        if (mode == MODE_CONTINUOUS) {
+            binding.pageScrubber.visibility = if (overlayVisible && images.isNotEmpty()) View.VISIBLE else View.GONE
+        }
         if (overlayVisible) insetsController.show(WindowInsetsCompat.Type.systemBars()) else hideSystemBars()
     }
 

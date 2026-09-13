@@ -18,6 +18,22 @@
                 android:layout_height="match_parent"
                 android:visibility="gone" />
 
+        <SeekBar
+                android:id="@+id/page_scrubber"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom"
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="16dp"
+                android:layout_marginBottom="6dp"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:paddingTop="14dp"
+                android:paddingBottom="14dp"
+                android:background="#66000000"
+                android:contentDescription="@string/page_scrubber_cd"
+                android:visibility="gone" />
+
         <com.google.android.material.floatingactionbutton.FloatingActionButton
                 android:id="@+id/auto_scroll_fab"
                 android:layout_width="wrap_content"

@@ -1013,6 +1013,7 @@
     <string name="image_browser_empty">未找到图片</string>
     <string name="image_counter_format">%1$d / %2$d</string>
     <string name="image_share">分享图片</string>
+    <string name="page_scrubber_cd">页面定位条</string>
     <string name="smb_login_title">登录 %1$s</string>
     <string name="smb_username">用户名</string>
     <string name="smb_password">密码</string>
