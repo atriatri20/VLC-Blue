@@ -42,17 +42,13 @@ object NetworkThumbStore {
     private var putCount = 0
 
     /**
-     * Reads the cached bitmap for [key], dropping unreadable files. When
-     * [maxAgeMs] is set, entries written longer ago are deleted and reported
-     * as a miss: the remote file/folder may have changed under the same uri.
+     * Reads the cached bitmap for [key], dropping unreadable files. Age is not
+     * judged here: an expired thumbnail is still better than no thumbnail, so
+     * the caller keeps showing it and refreshes it in the background.
      */
-    fun get(context: Context, key: String, maxAgeMs: Long = Long.MAX_VALUE): Bitmap? {
+    fun get(context: Context, key: String): Bitmap? {
         val file = diskFile(context, key)
         if (!file.isFile) return null
-        if (maxAgeMs != Long.MAX_VALUE && System.currentTimeMillis() - file.lastModified() > maxAgeMs) {
-            file.delete()
-            return null
-        }
         return BitmapFactory.decodeFile(file.absolutePath) ?: run {
             file.delete()
             null
@@ -65,19 +61,19 @@ object NetworkThumbStore {
         return if (file.isFile) file.lastModified() else 0L
     }
 
-    /** Removes the entry for [key] */
-    fun delete(context: Context, key: String) {
-        diskFile(context, key).delete()
-    }
-
-    /** Persists [bitmap] for [key] (overwrites), occasionally trims the folder size */
+    /** Persists [bitmap] for [key], replacing the previous one atomically */
     fun put(context: Context, key: String, bitmap: Bitmap) {
         synchronized(writeLock) {
             val file = diskFile(context, key)
+            val tmp = File(file.parentFile, file.name + ".tmp")
             runCatching {
                 file.parentFile?.mkdirs()
-                FileOutputStream(file).use { bitmap.compress(Bitmap.CompressFormat.JPEG, 88, it) }
-            }
+                FileOutputStream(tmp).use { bitmap.compress(Bitmap.CompressFormat.JPEG, 88, it) }
+            }.onSuccess {
+                // rename replaces the old file atomically; if it fails we simply
+                // keep serving the previous thumbnail
+                if (!tmp.renameTo(file)) tmp.delete()
+            }.onFailure { tmp.delete() }
             if (++putCount % 64 == 0) trim(context)
         }
     }

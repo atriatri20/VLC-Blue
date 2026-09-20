@@ -7,4 +7,9 @@
         android:icon="@drawable/ic_fav_add"
         android:visible="false"
         vlc:showAsAction="always" />
+    <item
+        android:orderInCategory="3"
+        android:id="@+id/browser_refresh_thumbnails"
+        android:title="@string/browser_refresh_thumbnails"
+        vlc:showAsAction="never" />
 </menu>

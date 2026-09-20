@@ -730,6 +730,12 @@ abstract class BaseBrowserFragment : MediaBrowserFragment<BrowserModel>(), IRefr
                 true
             }
 
+            R.id.browser_refresh_thumbnails -> {
+                BrowserThumbnails.forceRefresh(viewModel.dataset.getList())
+                adapter.notifyDataSetChanged()
+                true
+            }
+
             R.id.ml_menu_display_options -> {
                 //filter all sorts and keep only applicable ones
                 val sorts = arrayListOf(Medialibrary.SORT_ALPHA, Medialibrary.SORT_FILENAME)

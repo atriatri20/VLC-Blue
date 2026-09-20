@@ -345,7 +345,7 @@ abstract class BrowserProvider(val context: Context, val dataset: LiveDataset<Me
                         } else if (mw is Storage) directories.add(MLServiceLocator.getAbstractMediaWrapper(media))
                     }
                     // all subitems are in
-                    BrowserThumbnails.cacheFolderPreview(context, item, directories + files)
+                    BrowserThumbnails.cacheFolderPreview(item, directories + files)
                     getDescription(directories.size, files.size).takeIf { it.isNotEmpty() }?.let {
                         val position = currentParsedPosition
                         withContext(coroutineContextProvider.Main) {

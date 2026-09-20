@@ -1024,6 +1024,7 @@
     <string name="image_albums_empty_hidden">相册已全部隐藏，在右上角菜单勾选"显示已隐藏的相册"可找回。</string>
     <string name="image_album_hidden_count">已隐藏 %1$d 个相册</string>
     <string name="image_album_unhidden_count">已恢复 %1$d 个相册</string>
+    <string name="browser_refresh_thumbnails">刷新缩略图</string>
     <string name="image_count_items">%1$d 张</string>
     <string name="image_today">今天</string>
     <string name="image_yesterday">昨天</string>

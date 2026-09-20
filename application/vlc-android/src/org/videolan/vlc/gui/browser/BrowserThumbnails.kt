@@ -32,6 +32,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.widget.ImageView
+import androidx.annotation.VisibleForTesting
 import org.videolan.medialibrary.interfaces.media.MediaWrapper
 import org.videolan.medialibrary.media.MediaLibraryItem
 import org.videolan.tools.BitmapCache
@@ -50,10 +51,15 @@ import kotlin.math.max
  * Row thumbnails for the file and network browsers.
  *
  * Image files get a decoded thumbnail, folders get a cover preview (the first
- * image found inside them, cached while the provider parses each folder
+ * image found inside them, registered while the provider parses each folder
  * listing). smb:// entries are decoded through the jcifs client on a small
- * dedicated executor. Negative results are remembered briefly so entries
- * without a decodable image are not retried on every rebind.
+ * dedicated executor.
+ *
+ * A cached bitmap is always shown first, even once it is expired: the refresh
+ * then runs behind it and replaces it atomically. That keeps a slow or failing
+ * share from blanking rows that already have a usable picture, while a folder
+ * cover cannot go stale silently because its key carries its content.
+ * Failed decodes are retried with a doubling delay instead of on every rebind.
  *
  * A row bind is speculation: the user never asked for that particular bitmap.
  * So when a share host is known to be unreachable, its probes are skipped
@@ -64,36 +70,66 @@ object BrowserThumbnails {
 
     private const val THUMB_W = 320
     private const val THUMB_H = 480
-    private const val NEGATIVE_TTL_MS = 60L * 1000L
 
     /**
      * How long a generated thumbnail is trusted. smb:// has no cheap
-     * size/mtime in the browser listing, and folders/files can change under
-     * the same uri (delete + recreate being the extreme case), so after this
-     * delay the disk entry is dropped and the bitmap is regenerated when the
-     * row is bound again.
+     * size/mtime in the browser listing, so an expired entry is regenerated
+     * in the background - the cached bitmap stays on screen meanwhile.
      */
-    private const val THUMB_STALE_MS = 10L * 60L * 1000L
+    private const val THUMB_STALE_MS = 60L * 60L * 1000L
+
+    /** First retry delay after a failed decode, doubled per strike up to the cap */
+    private const val NEGATIVE_BASE_MS = 60L * 1000L
+    private const val NEGATIVE_MAX_MS = 30L * 60L * 1000L
+
+    /** How long a forced-refresh mark stays pending before it is considered lost */
+    private const val FORCED_WINDOW_MS = 5 * 60 * 1000L
 
     private val localExecutor = Executors.newFixedThreadPool(2)
     private val networkExecutor = Executors.newFixedThreadPool(2)
-    private val mainHandler = Handler(Looper.getMainLooper())
+    /** Lazily built: the unit tests exercise the pure logic without a Looper */
+    private val mainHandler by lazy { Handler(Looper.getMainLooper()) }
     private val inflight = ConcurrentHashMap<String, Boolean>()
-    private val negatives = ConcurrentHashMap<String, Long>()
 
-    /** key -> epoch ms of the bitmap generation backing the memory cache */
+    /** key -> epoch ms of the bitmap generation backing the caches */
     private val thumbTimes = ConcurrentHashMap<String, Long>()
 
-    private fun isFresh(key: String) = System.currentTimeMillis() - (thumbTimes[key] ?: 0L) < THUMB_STALE_MS
+    /** key -> epoch ms until which a failed decode is not retried again */
+    private val negativeUntil = ConcurrentHashMap<String, Long>()
 
-    /** folders whose listing has no image but contains videos: folderKey -> first video */
-    private val folderVideoCandidates = ConcurrentHashMap<String, MediaWrapper>()
+    /** key -> consecutive decode failures, drives the retry backoff */
+    private val negativeStrikes = ConcurrentHashMap<String, Int>()
 
-    /** folders with images: folderKey -> first image (cover generated async at bind time) */
-    private val folderImageCandidates = ConcurrentHashMap<String, MediaWrapper>()
+    /**
+     * key -> epoch ms when the user explicitly asked to regenerate it (browser
+     * overflow action). Cleared when the re-decode it triggers lands - success
+     * or failure - so a failed refresh stays pending instead of being swallowed.
+     * The stamp is the safety net: binds that bail out before the decode (host
+     * unreachable, negative cache, folder candidate not parsed yet) would
+     * otherwise leave the key pending forever and re-decode it on every rebind.
+     */
+    private val forced = ConcurrentHashMap<String, Long>()
 
-    /** folderKey -> uri of the candidate backing the current cover, to detect content changes */
-    private val folderSignatures = ConcurrentHashMap<String, String>()
+    /**
+     * Upper bound for every state map above. The keys carry the full media uri
+     * (~200B each), so an unbounded map would grow for the whole session while
+     * browsing large shares; entries past the cap are simply recomputed later.
+     */
+    private const val MAP_CAP = 4096
+
+    /**
+     * put() with a size cap: past [cap] entries the eldest is evicted. The
+     * ConcurrentHashMap key order is only an approximation of insertion order,
+     * so this is near-LRU rather than exact LRU - fine for caches and failure
+     * bookkeeping, where a wrong victim just costs one recompute or re-probe.
+     */
+    internal fun <K, V> ConcurrentHashMap<K, V>.putCapped(key: K, value: V, cap: Int = MAP_CAP) {
+        put(key, value)
+        if (size > cap) keys.firstOrNull()?.let { remove(it) }
+    }
+
+    /** folderUri -> the image or video whose cover is currently cached for it */
+    private val folderCandidates = ConcurrentHashMap<String, MediaWrapper>()
 
     fun isImage(media: MediaWrapper): Boolean {
         when (media.type) {
@@ -105,9 +141,84 @@ object BrowserThumbnails {
 
     private fun mediaKey(media: MediaWrapper) = "bimg_${media.uri}_${THUMB_W}x$THUMB_H"
 
-    private fun folderKey(folder: MediaWrapper) = "bimgdir_${folder.uri}_${THUMB_W}x$THUMB_H"
-
     private fun videoKey(media: MediaWrapper) = "bvid_${media.uri}_$THUMB_W"
+
+    private fun folderBase(folder: MediaWrapper) = "bimgdir_${folder.uri}"
+
+    /**
+     * The cover candidate is part of the key, so a folder that gained, lost or
+     * swapped its first media item simply resolves to a different entry: no
+     * invalidation needed, and it holds across process restarts.
+     */
+    private fun folderKey(folder: MediaWrapper, candidate: MediaWrapper) =
+            "${folderBase(folder)}_${candidate.uri}_${THUMB_W}x$THUMB_H"
+
+    /**
+     * Pure stale predicate, extracted for tests: the trust anchor is the newer
+     * of the in-memory timestamp and the disk entry's mtime. A bitmap can
+     * outlive [THUMB_STALE_MS] inside the memory LRU while its disk copy is
+     * still young, and re-decoding then would just fetch the same bytes again.
+     */
+    internal fun isStaleForTest(memTime: Long, diskModified: Long, forced: Boolean, now: Long) =
+            forced || now - max(memTime, diskModified) > THUMB_STALE_MS
+
+    /**
+     * True when the cached bitmap should be regenerated behind what is on screen.
+     * A forced key is stale only until its re-decode lands; the mark is cleared
+     * in loadAsync, not consumed here, so a failed refresh stays pending - but
+     * only for [FORCED_WINDOW_MS], see [isForced].
+     */
+    internal fun isStale(key: String, diskModified: Long = 0L, now: Long = System.currentTimeMillis()) =
+            isStaleForTest(thumbTimes[key] ?: 0L, diskModified, isForced(key, now), now)
+
+    /**
+     * A pending refresh request, dropped once it goes stale on its own: binds
+     * that return before queueing a decode never reach the code that clears the
+     * mark, and a permanent one would mean re-decoding the row on every rebind.
+     */
+    private fun isForced(key: String, now: Long): Boolean {
+        val requestedAt = forced[key] ?: return false
+        if (now - requestedAt < FORCED_WINDOW_MS) return true
+        forced.remove(key)
+        return false
+    }
+
+    private fun isNegative(key: String) = (negativeUntil[key] ?: 0L) > System.currentTimeMillis()
+
+    /**
+     * Backoff after a failed decode: the delay doubles per strike up to the cap.
+     * A failure of a user-forced refresh is pinned to a single strike (1 minute)
+     * instead of joining the exponential curve - an explicit request must stay
+     * retryable almost immediately.
+     */
+    internal fun noteFailure(key: String, forced: Boolean = false, now: Long = System.currentTimeMillis()) {
+        val strikes = if (forced) 1 else ((negativeStrikes[key] ?: 0) + 1).coerceAtMost(6)
+        negativeStrikes.putCapped(key, strikes)
+        negativeUntil.putCapped(key, now + negativeDelayMs(strikes))
+    }
+
+    /** Retry delay for [strikes] consecutive failures: 1min doubling to 30min */
+    internal fun negativeDelayMs(strikes: Int) =
+            (NEGATIVE_BASE_MS shl (strikes - 1)).coerceAtMost(NEGATIVE_MAX_MS)
+
+    @VisibleForTesting internal fun debugStrikes(key: String) = negativeStrikes[key] ?: 0
+    @VisibleForTesting internal fun debugNegativeUntil(key: String) = negativeUntil[key] ?: 0L
+    @VisibleForTesting internal fun debugForce(key: String, at: Long) {
+        forced.putCapped(key, at)
+    }
+
+    @VisibleForTesting internal fun debugForced(key: String) = forced.containsKey(key)
+    @VisibleForTesting internal fun debugReset(key: String) {
+        negativeStrikes.remove(key)
+        negativeUntil.remove(key)
+        forced.remove(key)
+        thumbTimes.remove(key)
+    }
+
+    private fun noteSuccess(key: String) {
+        negativeStrikes.remove(key)
+        negativeUntil.remove(key)
+    }
 
     /**
      * True for smb:// entries whose host recently refused to answer at all.
@@ -118,73 +229,48 @@ object BrowserThumbnails {
         return uri?.scheme == "smb" && SmbImageLoader.isKnownDead(uri.host)
     }
 
-    private fun isNegative(key: String): Boolean {
-        val since = negatives[key] ?: return false
-        if (System.currentTimeMillis() - since > NEGATIVE_TTL_MS) {
-            negatives.remove(key)
-            return false
-        }
-        return true
-    }
-
     /**
      * Called from BrowserProvider.parseSubDirectoriesImpl once a folder listing
      * is available. No IO happens here (it runs on the parse thread): the first
-     * image/video is only registered as a cover candidate and the actual
-     * decode/frame extraction happens asynchronously when the folder row binds.
+     * image/video is only registered as the cover candidate, and the actual
+     * decode/frame extraction happens when the folder row binds.
      */
-    fun cacheFolderPreview(context: Context, folder: MediaLibraryItem?, listing: List<MediaLibraryItem>) {
+    fun cacheFolderPreview(folder: MediaLibraryItem?, listing: List<MediaLibraryItem>) {
         if (folder !is MediaWrapper) return
-        val key = folderKey(folder)
-        if (isNegative(key)) return
         val wrappers = listing.filterIsInstance<MediaWrapper>()
-        val firstImage = wrappers.firstOrNull { isImage(it) }
-        val firstVideo = if (firstImage == null) wrappers.firstOrNull { it.type == MediaWrapper.TYPE_VIDEO } else null
-        val signature = (firstImage ?: firstVideo)?.uri?.toString().orEmpty()
-        if (folderSignatures.containsKey(key) && folderSignatures[key] != signature) {
-            // same folder uri, different content: the cached cover is stale
-            invalidate(context.applicationContext, key)
-        }
-        folderSignatures[key] = signature
-        if (firstImage != null) {
-            folderImageCandidates[key] = firstImage
-            folderVideoCandidates.remove(key)
-            return
-        }
-        if (firstVideo == null) {
-            folderImageCandidates.remove(key)
-            folderVideoCandidates.remove(key)
-            negatives[key] = System.currentTimeMillis()
-        } else {
-            folderImageCandidates.remove(key)
-            folderVideoCandidates[key] = firstVideo
+        val candidate = wrappers.firstOrNull { isImage(it) }
+                ?: wrappers.firstOrNull { it.type == MediaWrapper.TYPE_VIDEO }
+        if (candidate == null) folderCandidates.remove(folderBase(folder))
+        else folderCandidates[folderBase(folder)] = candidate
+    }
+
+    /**
+     * Browser overflow action: regenerate the thumbnails of [items]. Rows keep
+     * showing what is cached while the new bitmap is fetched, so pressing this
+     * on a big folder is safe.
+     */
+    fun forceRefresh(items: List<MediaLibraryItem>) {
+        items.filterIsInstance<MediaWrapper>().forEach { media ->
+            cacheKeysFor(media).forEach { key ->
+                forced.putCapped(key, System.currentTimeMillis())
+                negativeUntil.remove(key)
+                negativeStrikes.remove(key)
+            }
         }
     }
 
-    /** Drops every cached copy of [key] (memory, disk, freshness stamp) */
-    private fun invalidate(context: Context, key: String) {
-        thumbTimes.remove(key)
-        BitmapCache.removeBitmapFromMemCache(key)
-        NetworkThumbStore.delete(context, key)
-    }
-
-    private fun getCachedFolderPreview(context: Context, folder: MediaWrapper): Bitmap? {
-        val key = folderKey(folder)
-        if (isNegative(key)) return null
-        BitmapCache.getBitmapFromMemCache(key)?.let {
-            if (isFresh(key)) return it
-            BitmapCache.removeBitmapFromMemCache(key)
-        }
-        val fromDisk = NetworkThumbStore.get(context, key, THUMB_STALE_MS) ?: return null
-        BitmapCache.addBitmapToMemCache(key, fromDisk)
-        thumbTimes[key] = NetworkThumbStore.lastModified(context, key)
-        return fromDisk
+    private fun cacheKeysFor(media: MediaWrapper): List<String> = when {
+        isImage(media) -> listOf(mediaKey(media))
+        media.type == MediaWrapper.TYPE_VIDEO -> listOf(videoKey(media))
+        media.type == MediaWrapper.TYPE_DIR ->
+            folderCandidates[folderBase(media)]?.let { listOf(folderKey(media, it)) } ?: emptyList()
+        else -> emptyList()
     }
 
     /**
      * Called on every media row bind. Applies the cached thumbnail/preview when
-     * available, otherwise starts an async decode for image files and patches
-     * the row when done.
+     * available - even when expired, so a refresh never blanks the row - and
+     * decodes asynchronously whatever is missing or due for one.
      */
     fun bind(container: BrowserItemBindingContainer, media: MediaWrapper) {
         bindInternal(container.itemIcon, media) { bitmap -> applyDrawable(container, bitmap) }
@@ -204,107 +290,89 @@ object BrowserThumbnails {
 
     private fun bindInternal(icon: ImageView, media: MediaWrapper, apply: (Bitmap) -> Unit) {
         when {
-            isImage(media) -> {
-                val key = mediaKey(media)
-                if (isNegative(key)) return
-                val cached = BitmapCache.getBitmapFromMemCache(key)
-                if (cached != null) {
-                    if (isFresh(key)) {
-                        apply(cached)
-                        return
-                    }
-                    BitmapCache.removeBitmapFromMemCache(key)
-                }
-                NetworkThumbStore.get(icon.context, key, THUMB_STALE_MS)?.let { fromDisk ->
-                    BitmapCache.addBitmapToMemCache(key, fromDisk)
-                    thumbTimes[key] = NetworkThumbStore.lastModified(icon.context, key)
-                    apply(fromDisk)
-                    return
-                }
-                loadAsync(icon, media, apply)
-            }
-            media.type == MediaWrapper.TYPE_VIDEO -> {
-                val key = videoKey(media)
-                if (!Settings.showVideoThumbs || isNegative(key)) return
-                val cached = BitmapCache.getBitmapFromMemCache(key)
-                if (cached != null) {
-                    if (isFresh(key)) {
-                        apply(cached)
-                        return
-                    }
-                    BitmapCache.removeBitmapFromMemCache(key)
-                }
-                NetworkThumbStore.get(icon.context, key, THUMB_STALE_MS)?.let { fromDisk ->
-                    BitmapCache.addBitmapToMemCache(key, fromDisk)
-                    thumbTimes[key] = NetworkThumbStore.lastModified(icon.context, key)
-                    apply(fromDisk)
-                    return
-                }
-                loadAsync(icon, media, apply)
-            }
-            media.type == MediaWrapper.TYPE_DIR -> {
-                val key = folderKey(media)
-                val preview = getCachedFolderPreview(icon.context, media)
-                if (preview != null) {
-                    apply(preview)
-                    return
-                }
-                if (isNegative(key)) return
-                // cover candidates were registered while the parent folder was
-                // parsed; decode the first image (or extract the first video's
-                // frame) asynchronously, with the result persisted to disk
-                val imageCandidate = folderImageCandidates[key]
-                val videoCandidate = folderVideoCandidates[key]
-                if (imageCandidate == null && videoCandidate == null) return
-                val candidate = imageCandidate ?: videoCandidate!!
-                if (unreachableShare(candidate.uri)) return
-                icon.setTag(R.id.browser_thumb_key, key)
-                if (inflight.putIfAbsent(key, true) != null) return
-                val isImageCover = imageCandidate != null
-                val executor = if (candidate.uri?.scheme == "smb") networkExecutor else localExecutor
-                executor.execute {
-                    val bitmap = try {
-                        if (isImageCover) loadBitmap(icon.context, candidate)
-                        else loadVideoBitmap(icon.context, candidate)
-                    } catch (e: SmbImageLoader.SmbAuthRequiredException) {
-                        null
-                    } catch (ignored: Exception) {
-                        null
-                    }
-                    if (bitmap != null) {
-                        BitmapCache.addBitmapToMemCache(key, bitmap)
-                        thumbTimes[key] = System.currentTimeMillis()
-                        NetworkThumbStore.put(icon.context, key, bitmap)
-                    } else negatives[key] = System.currentTimeMillis()
-                    mainHandler.post {
-                        inflight.remove(key)
-                        val tagMatch = icon.getTag(R.id.browser_thumb_key) == key
-                        if (bitmap != null && tagMatch) apply(bitmap)
-                    }
-                }
-            }
+            isImage(media) -> bindRow(icon, media, mediaKey(media), apply)
+            media.type == MediaWrapper.TYPE_VIDEO ->
+                if (Settings.showVideoThumbs) bindRow(icon, media, videoKey(media), apply)
+            media.type == MediaWrapper.TYPE_DIR -> bindFolder(icon, media, apply)
         }
     }
 
-    private fun loadAsync(icon: ImageView, media: MediaWrapper, apply: (Bitmap) -> Unit) {
-        if (unreachableShare(media.uri)) return
-        val key = media.uri?.toString() ?: return
+    private fun bindRow(icon: ImageView, media: MediaWrapper, key: String, apply: (Bitmap) -> Unit) {
+        val isVideo = media.type == MediaWrapper.TYPE_VIDEO
+        bindCached(icon, key, media.uri, { context ->
+            if (isVideo) loadVideoBitmap(context, media) else loadBitmap(context, media)
+        }, apply)
+    }
+
+    private fun bindFolder(icon: ImageView, folder: MediaWrapper, apply: (Bitmap) -> Unit) {
+        val candidate = folderCandidates[folderBase(folder)] ?: return
+        bindCached(icon, folderKey(folder, candidate), candidate.uri, { context ->
+            if (isImage(candidate)) loadBitmap(context, candidate) else loadVideoBitmap(context, candidate)
+        }, apply)
+    }
+
+    /** Cache first, decode behind it: an expired bitmap still beats a blank row */
+    private fun bindCached(
+            icon: ImageView,
+            key: String,
+            uri: Uri?,
+            decode: (Context) -> Bitmap?,
+            apply: (Bitmap) -> Unit
+    ) {
+        if (isNegative(key)) return
+        val context = icon.context
+        val cached = BitmapCache.getBitmapFromMemCache(key) ?: NetworkThumbStore.get(context, key)?.also {
+            BitmapCache.addBitmapToMemCache(key, it)
+            thumbTimes.putCapped(key, NetworkThumbStore.lastModified(context, key))
+        }
+        if (cached == null) {
+            loadAsync(icon, key, uri, decode, apply)
+            return
+        }
+        apply(cached)
+        // The disk mtime is only worth its stat once the memory anchor says
+        // stale: a younger disk entry then spares this row a re-decode, while a
+        // fresh hit stays a pure map lookup on the bind path.
+        var stale = isStale(key)
+        if (stale) stale = isStale(key, NetworkThumbStore.lastModified(context, key))
+        if (!stale) return
+        loadAsync(icon, key, uri, decode, apply)
+    }
+
+    private fun loadAsync(
+            icon: ImageView,
+            key: String,
+            uri: Uri?,
+            decode: (Context) -> Bitmap?,
+            apply: (Bitmap) -> Unit
+    ) {
+        if (unreachableShare(uri)) return
         icon.setTag(R.id.browser_thumb_key, key)
         if (inflight.putIfAbsent(key, true) != null) return
-        val isVideo = media.type == MediaWrapper.TYPE_VIDEO
-        val cacheKey = if (isVideo) videoKey(media) else mediaKey(media)
-        val executor = if (media.uri?.scheme == "smb") networkExecutor else localExecutor
+        val context = icon.context
+        val executor = if (uri?.scheme == "smb") networkExecutor else localExecutor
         executor.execute {
+            // SmbAuthRequiredException ends up here too: without credentials the
+            // row keeps its plain icon, and the viewer prompts once on open
             val bitmap = try {
-                if (isVideo) loadVideoBitmap(icon.context, media) else loadBitmap(icon.context, media)
-            } catch (e: SmbImageLoader.SmbAuthRequiredException) {
+                decode(context)
+            } catch (ignored: Exception) {
                 null
             }
             if (bitmap != null) {
-                BitmapCache.addBitmapToMemCache(cacheKey, bitmap)
-                thumbTimes[cacheKey] = System.currentTimeMillis()
-                NetworkThumbStore.put(icon.context, cacheKey, bitmap)
-            } else negatives[cacheKey] = System.currentTimeMillis()
+                // the memory cache never overwrites, so drop what it holds first
+                BitmapCache.removeBitmapFromMemCache(key)
+                BitmapCache.addBitmapToMemCache(key, bitmap)
+                thumbTimes.putCapped(key, System.currentTimeMillis())
+                NetworkThumbStore.put(context, key, bitmap)
+                forced.remove(key)
+                noteSuccess(key)
+            } else {
+                // the forced mark is consumed by this attempt either way; its
+                // failure only earns a 1-minute pause, not the backoff curve
+                val wasForced = forced.remove(key) != null
+                noteFailure(key, forced = wasForced)
+            }
             mainHandler.post {
                 inflight.remove(key)
                 if (bitmap != null && icon.getTag(R.id.browser_thumb_key) == key) apply(bitmap)

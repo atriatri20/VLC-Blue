@@ -1057,6 +1057,7 @@
     <string name="image_albums_empty_hidden">All albums are hidden. Tick "Show hidden albums" in the menu to bring them back.</string>
     <string name="image_album_hidden_count">%1$d albums hidden</string>
     <string name="image_album_unhidden_count">%1$d albums restored</string>
+    <string name="browser_refresh_thumbnails">Refresh thumbnails</string>
     <string name="image_count_items">%1$d items</string>
     <string name="image_today">Today</string>
     <string name="image_yesterday">Yesterday</string>

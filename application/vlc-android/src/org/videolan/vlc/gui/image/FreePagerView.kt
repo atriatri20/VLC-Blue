@@ -234,7 +234,10 @@ class FreePagerView @JvmOverloads constructor(context: Context, attrs: Attribute
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        if (!dragging) return false
+        // Once this view intercepted the sequence it must keep consuming it:
+        // returning false on UP marks the whole sequence unconsumed and can
+        // swallow the child page's click (single-tap overlay toggle).
+        if (!dragging) drag.start(event)
         when (event.actionMasked) {
             MotionEvent.ACTION_MOVE -> if (multiPointer || !drag.move(event)) {
                 multiPointer = true
@@ -245,14 +248,16 @@ class FreePagerView @JvmOverloads constructor(context: Context, attrs: Attribute
                 drag.addSample(event)
                 val velocity = drag.velocityAlong(axisVertical)
                 val span = axisSpan()
+                val wasDragging = dragging
                 dragging = false
                 drag.recycle()
+                if (!wasDragging) return true
                 val flung = abs(velocity) > drag.flingVelocity && (velocity < 0f) == (main < 0f)
                 if (span <= 0f) return true
                 if (flung || abs(main) > COMMIT_PROGRESS * travel()) commit() else bounceBack()
             }
 
-            MotionEvent.ACTION_CANCEL -> bounceBack()
+            MotionEvent.ACTION_CANCEL -> if (dragging) bounceBack()
         }
         return true
     }

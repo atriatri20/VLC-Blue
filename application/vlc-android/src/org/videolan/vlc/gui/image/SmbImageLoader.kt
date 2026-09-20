@@ -65,6 +65,9 @@ object SmbImageLoader {
 
     private const val DEAD_HOST_TTL_MS = 5 * 60 * 1000L
     private const val NETWORK_RECHECK_MS = 1000L
+
+    /** Pause before the second credential pass, long enough for a session re-setup */
+    private const val AUTH_RETRY_MS = 500L
     private const val TAG = "SmbImageLoader"
 
     private val baseContext: CIFSContext by lazy {
@@ -117,27 +120,40 @@ object SmbImageLoader {
      * credential set is tried at stream open time. This entry point always
      * probes the host, even a [isKnownDead] one: it is reached from deliberate
      * actions (opening an image), where a retry is what the user asked for.
+     *
+     * A credential that normally works can still be rejected once in a while -
+     * the server expired the session, or it is throttling new connections - and
+     * the guest/anonymous attempts that follow then look exactly like a missing
+     * password. So when we do hold a credential, the whole set is tried a second
+     * time before [SmbAuthRequiredException] is thrown and the user is asked.
      */
     fun openStream(uri: Uri): InputStream? {
         val url = buildUrl(uri) ?: return null
         val host = runCatching { uri.host }.getOrNull() ?: return null
-        var authFailure = false
-        for (context in credentialContexts(uri, host)) {
-            try {
-                val stream = SmbFileInputStream(SmbFile(url, context))
-                markAlive(host)
-                return stream
-            } catch (e: SmbAuthException) {
-                authFailure = true
-            } catch (e: Exception) {
-                if (!isConnectivityFailure(e)) continue
-                markDead(host)
-                return null
+        val attempts = if (hasCredentialFor(uri, host)) 2 else 1
+        repeat(attempts) { attempt ->
+            if (attempt > 0) runCatching { Thread.sleep(AUTH_RETRY_MS) }
+            var authFailure = false
+            for (context in credentialContexts(uri, host)) {
+                try {
+                    val stream = SmbFileInputStream(SmbFile(url, context))
+                    markAlive(host)
+                    return stream
+                } catch (e: SmbAuthException) {
+                    authFailure = true
+                } catch (e: Exception) {
+                    if (!isConnectivityFailure(e)) continue
+                    markDead(host)
+                    return null
+                }
             }
+            if (!authFailure) return null
         }
-        if (authFailure) throw SmbAuthRequiredException(host)
-        return null
+        throw SmbAuthRequiredException(host)
     }
+
+    private fun hasCredentialFor(uri: Uri, host: String) =
+            !runCatching { uri.userInfo }.getOrNull().isNullOrBlank() || hasStoredCredential(host)
 
     /**
      * Random access variant used by the video thumbnailer (MediaDataSource)

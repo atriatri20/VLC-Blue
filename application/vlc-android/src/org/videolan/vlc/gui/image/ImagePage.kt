@@ -190,7 +190,7 @@ internal class PagePool(
         private val onTap: () -> Unit
 ) {
 
-    private val free = ArrayList<ImagePage>(5)
+    private val free = ArrayList<ImagePage>(MAX_FREE_PAGES)
 
     /** Returns the page already showing [position], else a pooled or fresh one. */
     fun acquire(position: Int): ImagePage {
@@ -212,7 +212,7 @@ internal class PagePool(
         page.visibility = View.GONE
         page.detachContent()
         page.blurTo(0f)
-        if (free.size < 5) free.add(page)
+        if (free.size < MAX_FREE_PAGES) free.add(page)
     }
 
     private fun newPage(): ImagePage {
@@ -224,6 +224,15 @@ internal class PagePool(
         page.image.onZoomChanged = { zoomed -> page.setClipReleased(zoomed) }
         parent.addView(page)
         return page
+    }
+
+    private companion object {
+        /**
+         * Cap on pooled-but-idle pages. A warm pager holds 3 pages (previous,
+         * current, next) and the two pagers peak at 6 live pages; 5 leaves
+         * headroom without keeping a page for every flick of the finger.
+         */
+        const val MAX_FREE_PAGES = 5
     }
 }
 
