@@ -130,6 +130,7 @@ const val SHOW_VIDEO_THUMBNAILS = "show_video_thumbnails"
 const val KEY_VIDEO_CONFIRM_RESUME = "video_confirm_resume"
 const val KEY_AUDIO_CONFIRM_RESUME = "audio_confirm_resume"
 const val KEY_MEDIALIBRARY_AUTO_RESCAN = "auto_rescan"
+const val KEY_MEDIALIB_NETWORK_INDEX = "medialibrary_network_index"
 const val KEY_TV_ONBOARDING_DONE = "key_tv_onboarding_done"
 const val KEY_INCOGNITO = "incognito_mode"
 const val KEY_LAST_WHATS_NEW = "last_whats_new"
@@ -347,6 +348,7 @@ const val BROWSER_DISPLAY_IN_CARDS = "browser_display_in_cards"
 const val BROWSER_LARGE_CARDS = "browser_large_cards"
 const val BROWSER_CARD_WIDTH = "browser_card_width"
 const val BROWSER_HIDE_NAMES = "browser_hide_names"
+const val BROWSER_SHOW_COUNTS = "browser_show_counts"
 
 
 // Albums

@@ -42,9 +42,10 @@ import kotlin.math.min
  * The displayed matrix is B·C(s)·T where B fits the bitmap inside the view,
  * C(s) scales around the view center and T is a panning translation.
  *
- * It cooperates with a vertical ViewPager2 parent: while the image sits at scale 1.0,
- * vertical drags are left to the parent so the pager can switch images. Once the image
- * is zoomed in, the view claims the touch stream and the pager stops intercepting.
+ * It cooperates with the paged readers (see [FreePagerView], [CardStackPager]): while
+ * the image sits at scale 1.0 drags are left to the parent so it can switch images.
+ * Once the image is zoomed in, the view claims the touch stream and stops
+ * intercepting.
  */
 class ZoomableImageView @JvmOverloads constructor(context: Context, attrs: AttributeSet? = null)
     : AppCompatImageView(context, attrs) {
@@ -56,6 +57,11 @@ class ZoomableImageView @JvmOverloads constructor(context: Context, attrs: Attri
     }
 
     var onSingleTap: (() -> Unit)? = null
+
+    /** Fired when the image crosses between fit and zoomed, so a clipping
+     * container can release its card shape while the photo is zoomed. */
+    var onZoomChanged: ((Boolean) -> Unit)? = null
+    private var zoomed = false
 
     private val baseMatrix = Matrix()
     private val drawMatrix = Matrix()
@@ -85,6 +91,7 @@ class ZoomableImageView @JvmOverloads constructor(context: Context, attrs: Attri
         cancelAnimation()
         super.setImageBitmap(bitmap)
         scale = MIN_SCALE
+        setZoomed(false)
         offsetX = 0f
         offsetY = 0f
         if (bitmap != null && bitmap.width > 0 && bitmap.height > 0) {
@@ -104,6 +111,12 @@ class ZoomableImageView @JvmOverloads constructor(context: Context, attrs: Attri
         offsetX = 0f
         offsetY = 0f
         applyMatrix()
+    }
+
+    private fun setZoomed(value: Boolean) {
+        if (value == zoomed) return
+        zoomed = value
+        onZoomChanged?.invoke(value)
     }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
@@ -130,9 +143,27 @@ class ZoomableImageView @JvmOverloads constructor(context: Context, attrs: Attri
     private fun applyMatrix() {
         setImageMatrix(currentDrawMatrix())
         invalidate()
+        val nowZoomed = isZoomed()
+        if (nowZoomed != zoomed) {
+            zoomed = nowZoomed
+            onZoomChanged?.invoke(nowZoomed)
+        }
     }
 
-    private fun isZoomed() = scale > MIN_SCALE + 0.01f
+    /** True once the image is scaled past its fit, i.e. panning takes over. */
+    fun isZoomed() = scale > MIN_SCALE + 0.01f
+
+    /**
+     * Where the bitmap is painted right now, in view coordinates. A card clips to this
+     * rather than to the view, so a card is the shape of its photo and never drags the
+     * black around it along as it moves; it follows the zoom, so panning is not cropped.
+     */
+    fun photoRect(): RectF? {
+        if (bitmapWidth == 0 || width == 0 || height == 0) return null
+        val rect = RectF(0f, 0f, bitmapWidth.toFloat(), bitmapHeight.toFloat())
+        currentDrawMatrix().mapRect(rect)
+        return rect
+    }
 
     /**
      * Keep the displayed image within the view bounds while zoomed

@@ -47,8 +47,36 @@ data class ImageInfo(
         val dateAdded: Long,
         val size: Long,
         val mimeType: String,
-        val bucket: String?
+        val bucket: String?,
+        val bucketId: Long = 0L,
+        val width: Int = 0,
+        val height: Int = 0
 ) : Parcelable
+
+/**
+ * A device album: all the images of one MediaStore bucket. The cover is the
+ * most recent image of the bucket.
+ */
+data class ImageAlbum(
+        val bucketId: Long,
+        val name: String,
+        val cover: ImageInfo,
+        val images: List<ImageInfo>
+) {
+    val dateAdded: Long = cover.dateAdded
+}
+
+/** Sort orders for the image grids, persisted as an int */
+enum class ImageSort(val value: Int) {
+    DATE_DESC(0), DATE_ASC(1), NAME_ASC(2), NAME_DESC(3);
+
+    /** True when this order groups images in date sections (headers in the grid) */
+    val isDateBased: Boolean get() = this == DATE_DESC || this == DATE_ASC;
+
+    companion object {
+        fun fromValue(value: Int) = entries.firstOrNull { it.value == value } ?: DATE_DESC
+    }
+}
 
 /**
  * Queries the device images through MediaStore and decodes them at a requested size.
@@ -78,7 +106,12 @@ object ImageRepository {
         projection.add(MediaStore.Images.Media.DATE_ADDED)
         projection.add(MediaStore.Images.Media.SIZE)
         projection.add(MediaStore.Images.Media.MIME_TYPE)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) projection.add(MediaStore.Images.Media.BUCKET_DISPLAY_NAME)
+        projection.add(MediaStore.Images.Media.WIDTH)
+        projection.add(MediaStore.Images.Media.HEIGHT)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            projection.add(MediaStore.Images.Media.BUCKET_DISPLAY_NAME)
+            projection.add(MediaStore.Images.Media.BUCKET_ID)
+        }
         val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
         try {
             context.contentResolver.query(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, projection.toTypedArray(),
@@ -89,7 +122,10 @@ object ImageRepository {
                 val dateCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED)
                 val sizeCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.SIZE)
                 val mimeCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.MIME_TYPE)
+                val widthCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.WIDTH)
+                val heightCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.HEIGHT)
                 val bucketCol = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) cursor.getColumnIndexOrThrow(MediaStore.Images.Media.BUCKET_DISPLAY_NAME) else -1
+                val bucketIdCol = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) cursor.getColumnIndexOrThrow(MediaStore.Images.Media.BUCKET_ID) else -1
                 while (cursor.moveToNext()) {
                     val id = cursor.getLong(idCol)
                     result.add(ImageInfo(
@@ -100,7 +136,10 @@ object ImageRepository {
                             dateAdded = cursor.getLong(dateCol),
                             size = cursor.getLong(sizeCol),
                             mimeType = cursor.getString(mimeCol) ?: "image/*",
-                            bucket = if (bucketCol != -1) cursor.getString(bucketCol) else null
+                            bucket = if (bucketCol != -1) cursor.getString(bucketCol) else null,
+                            bucketId = if (bucketIdCol != -1) cursor.getLong(bucketIdCol) else 0L,
+                            width = cursor.getInt(widthCol),
+                            height = cursor.getInt(heightCol)
                     ))
                 }
             }
@@ -108,6 +147,29 @@ object ImageRepository {
         } catch (ignored: IllegalArgumentException) {
         }
         return result
+    }
+
+    /**
+     * Groups the (date-desc sorted) images into albums, one per MediaStore
+     * bucket. The result keeps the newest-first order of the input.
+     */
+    fun groupAlbums(images: List<ImageInfo>): List<ImageAlbum> {
+        val buckets = LinkedHashMap<Long, MutableList<ImageInfo>>()
+        for (image in images) {
+            val key = if (image.bucketId != 0L) image.bucketId else -image.id
+            buckets.getOrPut(key) { ArrayList() }.add(image)
+        }
+        return buckets.map { (id, list) ->
+            ImageAlbum(id, list[0].bucket ?: list[0].name, list[0], list)
+        }
+    }
+
+    /** Sorts the images with the requested order, returning a new list */
+    fun sortImages(images: List<ImageInfo>, sort: ImageSort): List<ImageInfo> = when (sort) {
+        ImageSort.DATE_DESC -> images.sortedByDescending { it.dateAdded }
+        ImageSort.DATE_ASC -> images.sortedBy { it.dateAdded }
+        ImageSort.NAME_ASC -> images.sortedWith(compareBy<ImageInfo> { it.name.lowercase(Locale.ENGLISH) }.thenBy { it.id })
+        ImageSort.NAME_DESC -> images.sortedWith(compareByDescending<ImageInfo> { it.name.lowercase(Locale.ENGLISH) }.thenByDescending { it.id })
     }
 
     /**
@@ -192,14 +254,18 @@ object ImageRepository {
             when (uri.scheme) {
                 "smb" -> decodeBytes(readAll(SmbImageLoader.openStream(uri)), reqWidth, reqHeight)
                 "content" -> {
+                    // NB: with inJustDecodeBounds=true, decodeStream returns null
+                    // (it only fills the bounds), so the stream-null check must
+                    // not be chained onto the decode result with ?:
+                    val boundsStream = context.contentResolver.openInputStream(uri) ?: return null
                     val bounds = BitmapFactory.Options()
                     bounds.inJustDecodeBounds = true
-                    context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
-                            ?: return null
+                    boundsStream.use { BitmapFactory.decodeStream(it, null, bounds) }
                     if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
                     val options = BitmapFactory.Options()
                     options.inSampleSize = computeInSampleSize(bounds, reqWidth, reqHeight)
-                    context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, options) }
+                    val decodeIn = context.contentResolver.openInputStream(uri) ?: return null
+                    decodeIn.use { BitmapFactory.decodeStream(it, null, options) }
                 }
                 else -> {
                     val path = if (uri.scheme == "file") uri.path ?: uri.toString() else uri.toString()

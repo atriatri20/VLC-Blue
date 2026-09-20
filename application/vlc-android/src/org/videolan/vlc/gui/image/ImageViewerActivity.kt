@@ -28,6 +28,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.text.InputType
 import android.view.GestureDetector
+import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.ScaleGestureDetector
 import android.view.View
@@ -39,7 +40,10 @@ import android.widget.SeekBar
 import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
+import android.view.Gravity
 import androidx.appcompat.widget.AppCompatImageView
+import com.google.android.material.radiobutton.MaterialRadioButton
+import com.google.android.material.switchmaterial.SwitchMaterial
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -47,9 +51,9 @@ import androidx.databinding.DataBindingUtil
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import androidx.viewpager2.widget.ViewPager2
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -68,10 +72,10 @@ import org.videolan.vlc.gui.BaseActivity
 /**
  * Full screen image viewer with three reading modes:
  *
- * - vertical pages (swipe up/down to change image, pinch/double tap zoom)
- * - horizontal pages (swipe left/right)
+ * - free pages (swipe any way: up/left next, down/right previous)
  * - continuous strip (webtoon style: all images of the folder stacked in one
  *   scrollable column, with optional hands-free smooth auto scrolling)
+ * - card stack (the folder as a deck; throw the top card to turn the page)
  *
  * The mode is switchable from the toolbar at any time, keeps the current image
  * and is remembered across sessions. Also serves as a VIEW handler for images
@@ -84,17 +88,36 @@ class ImageViewerActivity : BaseActivity() {
         private const val EXTRA_FOLDER_MODE = "extra_folder_mode"
         private const val DECODE_FACTOR = 1.5f
         private const val DEFAULT_RATIO = 1.5f
-        private const val PREF_VIEWER_MODE = "image_viewer_mode"
+        private const val PREF_VIEWER_MODE = "image_viewer_mode_v2"
         private const val PREF_AUTO_SPEED = "image_auto_scroll_speed"
-        const val MODE_PAGE_VERTICAL = 0
-        const val MODE_PAGE_HORIZONTAL = 1
-        const val MODE_CONTINUOUS = 2
+        private const val PREF_SLIDESHOW_INTERVAL = "image_slideshow_interval"
+        private val SLIDESHOW_INTERVALS = intArrayOf(1, 2, 3, 5, 10)
+        const val MODE_PAGE_FREE = 0
+        const val MODE_CONTINUOUS = 1
+        const val MODE_CARD_STACK = 2
 
         /**
          * Folder listings can be huge, so they travel through this static slot
          * instead of the intent. Consumed by the next launch of this activity.
          */
         private var folderEntries: List<String>? = null
+
+        /**
+         * MediaStore listings (photos tab, album page) also travel through a
+         * static slot so the viewer pages through exactly the list the grid
+         * is displaying, in its current sort order. Consumed on next launch.
+         */
+        private var mediaStoreEntries: List<ImageInfo>? = null
+
+        /**
+         * Viewer over a list of device images (already sorted by the caller),
+         * typically the photos tab or one album.
+         */
+        fun mediaStoreIntent(context: Context, entries: List<ImageInfo>, startIndex: Int): Intent {
+            mediaStoreEntries = entries
+            return Intent(context, ImageViewerActivity::class.java)
+                    .putExtra(EXTRA_POSITION, startIndex)
+        }
 
         /**
          * Viewer over a list of image uris (local paths, file:// or smb:// mrls),
@@ -116,13 +139,15 @@ class ImageViewerActivity : BaseActivity() {
     private var decodeWidth = 1080
     private var decodeHeight = 1920
     private var smbPromptShowing = false
-    private var mode = MODE_PAGE_VERTICAL
+    private var mode = MODE_PAGE_FREE
     private var currentIndex = 0
     private var stripPendingPositioning = false
     private var scrubberDragging = false
     private var autoScrolling = false
     private var touchPaused = false
     private var autoSpeed = 3
+    private var slideshowInterval = 3
+    private var slideshowJob: kotlinx.coroutines.Job? = null
     private var stripWidth = 0
     private var stripDecodeWidth = 1080
     private var stripDecodeHeight = 1920
@@ -141,6 +166,14 @@ class ImageViewerActivity : BaseActivity() {
     private lateinit var insetsController: WindowInsetsControllerCompat
 
     override fun getSnackAnchorView(overAudioPlayer: Boolean): View? = binding.root
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (level >= android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW) {
+            org.videolan.tools.BitmapCache.clear()
+            stripBytes.evictAll()
+        }
+    }
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -154,24 +187,30 @@ class ImageViewerActivity : BaseActivity() {
         decodeWidth = (metrics.widthPixels * DECODE_FACTOR).toInt()
         decodeHeight = (metrics.heightPixels * DECODE_FACTOR).toInt()
 
-        mode = Settings.getInstance(applicationContext).getInt(PREF_VIEWER_MODE, MODE_PAGE_VERTICAL)
-                .coerceIn(MODE_PAGE_VERTICAL, MODE_CONTINUOUS)
+        mode = Settings.getInstance(applicationContext).getInt(PREF_VIEWER_MODE, MODE_PAGE_FREE)
+                .coerceIn(MODE_PAGE_FREE, MODE_CARD_STACK)
         autoSpeed = Settings.getInstance(applicationContext).getInt(PREF_AUTO_SPEED, 3).coerceIn(1, 10)
+        slideshowInterval = Settings.getInstance(applicationContext).getInt(PREF_SLIDESHOW_INTERVAL, 3)
 
         requestedPosition = intent.getIntExtra(EXTRA_POSITION, -1)
         requestedUri = intent.data
 
         binding.backButton.setOnClickListener { finish() }
         binding.shareButton.setOnClickListener { shareCurrent() }
+        binding.slideshowButton.setOnClickListener { toggleSlideshow() }
+        binding.slideshowButton.setOnLongClickListener {
+            showSlideshowDialog()
+            true
+        }
         binding.modeButton.setOnClickListener { showModeDialog() }
         binding.autoScrollFab.setOnClickListener { toggleAutoScroll() }
 
-        binding.pager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
-            override fun onPageSelected(position: Int) {
-                currentIndex = position
-                updateOverlay()
-            }
-        })
+        binding.freePager.onImageLoad = { image, position -> loadPage(image, position) }
+        binding.freePager.onSingleTap = { toggleOverlay() }
+        binding.freePager.onPositionChanged = { position -> onPaged(position) }
+        binding.cardStack.onImageLoad = { image, position -> loadPage(image, position) }
+        binding.cardStack.onSingleTap = { toggleOverlay() }
+        binding.cardStack.onPositionChanged = { position -> onPaged(position) }
         binding.strip.layoutManager = LinearLayoutManager(this)
         binding.strip.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrolled(rv: RecyclerView, dx: Int, dy: Int) {
@@ -214,6 +253,14 @@ class ImageViewerActivity : BaseActivity() {
 
     private fun load() {
         lifecycleScope.launch {
+            val mediaStore = mediaStoreEntries
+            mediaStoreEntries = null
+            if (mediaStore != null) {
+                images = mediaStore
+                currentIndex = if (images.isEmpty()) 0 else requestedPosition.coerceIn(0, images.size - 1)
+                applyMode()
+                return@launch
+            }
             if (intent.getBooleanExtra(EXTRA_FOLDER_MODE, false)) {
                 val entries = folderEntries
                 folderEntries = null
@@ -261,43 +308,63 @@ class ImageViewerActivity : BaseActivity() {
      */
     private fun applyMode() {
         stopAutoScrollTick()
-        if (mode == MODE_CONTINUOUS) {
-            binding.pager.visibility = View.GONE
-            binding.strip.visibility = View.VISIBLE
-            binding.autoScrollFab.visibility = View.VISIBLE
-            stripWidth = binding.strip.width.takeIf { it > 0 } ?: resources.displayMetrics.widthPixels
-            // the strip has no zoom: screen-size decoding is enough, halves memory
-            stripDecodeWidth = resources.displayMetrics.widthPixels
-            stripDecodeHeight = resources.displayMetrics.heightPixels
-            // block the scroll listener while the strip settles, otherwise it
-            // overwrites currentIndex with 0 and the viewer opens at image 1
-            stripPendingPositioning = true
-            binding.strip.adapter = StripAdapter(images)
-            (binding.strip.layoutManager as? LinearLayoutManager)?.scrollToPositionWithOffset(currentIndex, 0)
-            // re-assert after the first layout: a pending scroll issued before
-            // the RecyclerView has been measured can be lost
-            binding.strip.post {
+        val metrics = resources.displayMetrics
+        when (mode) {
+            MODE_CONTINUOUS -> {
+                binding.freePager.visibility = View.GONE
+                binding.cardStack.visibility = View.GONE
+                binding.strip.visibility = View.VISIBLE
+                binding.autoScrollFab.visibility = View.VISIBLE
+                stripWidth = binding.strip.width.takeIf { it > 0 } ?: metrics.widthPixels
+                // the strip has no zoom: screen-size decoding is enough, halves memory
+                stripDecodeWidth = metrics.widthPixels
+                stripDecodeHeight = metrics.heightPixels
+                // block the scroll listener while the strip settles, otherwise it
+                // overwrites currentIndex with 0 and the viewer opens at image 1
+                stripPendingPositioning = true
+                binding.strip.adapter = StripAdapter(images)
                 (binding.strip.layoutManager as? LinearLayoutManager)?.scrollToPositionWithOffset(currentIndex, 0)
-                stripPendingPositioning = false
-                if (binding.strip.width > 0) stripWidth = binding.strip.width
+                // re-assert after the first layout: a pending scroll issued before
+                // the RecyclerView has been measured can be lost
+                binding.strip.post {
+                    (binding.strip.layoutManager as? LinearLayoutManager)?.scrollToPositionWithOffset(currentIndex, 0)
+                    stripPendingPositioning = false
+                    if (binding.strip.width > 0) stripWidth = binding.strip.width
+                }
+                syncFab()
+                binding.pageScrubber.max = (images.size - 1).coerceAtLeast(0)
+                binding.pageScrubber.progress = currentIndex.coerceIn(0, images.size - 1)
+                binding.pageScrubber.visibility = if (overlayVisible) View.VISIBLE else View.GONE
+                if (autoScrolling) startAutoScrollTick()
+                startStripSizePrefetch()
             }
-            syncFab()
-            binding.pageScrubber.max = (images.size - 1).coerceAtLeast(0)
-            binding.pageScrubber.progress = currentIndex.coerceIn(0, images.size - 1)
-            binding.pageScrubber.visibility = if (overlayVisible) View.VISIBLE else View.GONE
-            if (autoScrolling) startAutoScrollTick()
-            startStripSizePrefetch()
-        } else {
-            autoScrolling = false
-            sizePrefetchJob?.cancel()
-            binding.strip.visibility = View.GONE
-            binding.pageScrubber.visibility = View.GONE
-            binding.autoScrollFab.visibility = View.GONE
-            binding.pager.visibility = View.VISIBLE
-            binding.pager.orientation = if (mode == MODE_PAGE_HORIZONTAL) ViewPager2.ORIENTATION_HORIZONTAL
-            else ViewPager2.ORIENTATION_VERTICAL
-            binding.pager.adapter = ViewerAdapter(images)
-            binding.pager.setCurrentItem(currentIndex, false)
+
+            MODE_CARD_STACK -> {
+                autoScrolling = false
+                sizePrefetchJob?.cancel()
+                binding.strip.visibility = View.GONE
+                binding.pageScrubber.visibility = View.GONE
+                binding.freePager.visibility = View.GONE
+                binding.autoScrollFab.visibility = View.GONE
+                binding.cardStack.visibility = View.VISIBLE
+                // the deck keeps three cards at once: screen-size decoding keeps that affordable
+                decodeWidth = metrics.widthPixels
+                decodeHeight = metrics.heightPixels
+                binding.cardStack.setPages(images.size, currentIndex)
+            }
+
+            else -> {
+                autoScrolling = false
+                sizePrefetchJob?.cancel()
+                binding.strip.visibility = View.GONE
+                binding.pageScrubber.visibility = View.GONE
+                binding.cardStack.visibility = View.GONE
+                binding.autoScrollFab.visibility = View.GONE
+                binding.freePager.visibility = View.VISIBLE
+                decodeWidth = (metrics.widthPixels * DECODE_FACTOR).toInt()
+                decodeHeight = (metrics.heightPixels * DECODE_FACTOR).toInt()
+                binding.freePager.setPages(images.size, currentIndex)
+            }
         }
         Settings.getInstance(applicationContext).edit().putInt(PREF_VIEWER_MODE, mode).apply()
         updateOverlay()
@@ -322,8 +389,100 @@ class ImageViewerActivity : BaseActivity() {
         if (overlayVisible) insetsController.show(WindowInsetsCompat.Type.systemBars()) else hideSystemBars()
     }
 
+    /**
+     * D-pad navigation for TV remotes: up/left goes to the next image, down/right
+     * to the previous one, mirroring the free-pager swipe directions. Center and
+     * the media keys keep their system meaning.
+     */
+    override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
+        if (images.isEmpty()) return super.onKeyDown(keyCode, event)
+        val target = when (keyCode) {
+            KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_LEFT -> currentIndex + 1
+            KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_DPAD_RIGHT -> currentIndex - 1
+            else -> return super.onKeyDown(keyCode, event)
+        }
+        if (target < 0 || target >= images.size) return true
+        goTo(target)
+        return true
+    }
+
+    /** Jumps to [position] in the active mode; currentIndex follows via the mode's own callbacks. */
+    private fun goTo(position: Int) {
+        val clamped = position.coerceIn(0, images.size - 1)
+        if (mode == MODE_CONTINUOUS) {
+            (binding.strip.layoutManager as? LinearLayoutManager)?.scrollToPositionWithOffset(clamped, 0)
+        } else {
+            paged().setPosition(clamped, animated = true)
+        }
+    }
+
     private fun hideSystemBars() {
         insetsController.hide(WindowInsetsCompat.Type.systemBars())
+    }
+
+    /**
+     * Slideshow: play/pause entry point. First run opens the interval picker,
+     * afterwards the button toggles playback directly; long press reopens the
+     * picker. The ticker advances one image per interval in every mode.
+     */
+    private fun toggleSlideshow() {
+        if (slideshowJob != null) {
+            stopSlideshow()
+            return
+        }
+        showSlideshowDialog()
+    }
+
+    private fun showSlideshowDialog() {
+        val labels = SLIDESHOW_INTERVALS.map { getString(R.string.image_slideshow_seconds, it) }.toTypedArray()
+        val checked = SLIDESHOW_INTERVALS.indexOf(slideshowInterval).coerceAtLeast(0)
+        androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle(R.string.image_slideshow_interval)
+                .setSingleChoiceItems(labels, checked) { dialog, which ->
+                    slideshowInterval = SLIDESHOW_INTERVALS[which]
+                    Settings.getInstance(applicationContext).edit().putInt(PREF_SLIDESHOW_INTERVAL, slideshowInterval).apply()
+                    dialog.dismiss()
+                    startSlideshow()
+                }
+                .setNegativeButton(android.R.string.cancel, null)
+                .show()
+    }
+
+    private fun startSlideshow() {
+        if (images.isEmpty()) return
+        stopSlideshow()
+        slideshowJob = lifecycleScope.launch {
+            while (true) {
+                delay(slideshowInterval * 1000L)
+                advanceSlideshow()
+            }
+        }
+        syncSlideshowButton()
+    }
+
+    private fun stopSlideshow() {
+        slideshowJob?.cancel()
+        slideshowJob = null
+        syncSlideshowButton()
+    }
+
+    private fun advanceSlideshow() {
+        if (images.isEmpty()) {
+            stopSlideshow()
+            return
+        }
+        val next = currentIndex + 1
+        if (next >= images.size) {
+            stopSlideshow()
+            Toast.makeText(this, R.string.image_slideshow_end, Toast.LENGTH_SHORT).show()
+            return
+        }
+        goTo(next)
+    }
+
+    private fun syncSlideshowButton() {
+        binding.slideshowButton.setImageResource(
+                if (slideshowJob != null) R.drawable.ic_slideshow_pause else R.drawable.ic_slideshow_play)
     }
 
     private fun shareCurrent() {
@@ -358,10 +517,26 @@ class ImageViewerActivity : BaseActivity() {
                 .setNegativeButton(android.R.string.cancel, null)
                 .create()
         fun modeRow(labelRes: Int, modeValue: Int): View {
-            val row = TextView(this)
-            row.text = if (mode == modeValue) "●  ${getString(labelRes)}" else "○  ${getString(labelRes)}"
-            row.textSize = 16f
-            row.setPadding(pad, pad / 2, pad, pad / 2)
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                isClickable = true
+                setPadding(pad, pad / 3, pad, pad / 3)
+                minimumHeight = (48 * resources.displayMetrics.density).toInt()
+                val out = android.util.TypedValue()
+                context.theme.resolveAttribute(android.R.attr.selectableItemBackground, out, true)
+                if (android.os.Build.VERSION.SDK_INT >= 23 && out.resourceId != 0)
+                    this.foreground = context.getDrawable(out.resourceId)
+            }
+            row.addView(MaterialRadioButton(this).apply {
+                isChecked = mode == modeValue
+                isClickable = false
+            })
+            row.addView(TextView(this).apply {
+                text = getString(labelRes)
+                textSize = 16f
+                setPadding(pad / 2, 0, 0, 0)
+            })
             row.setOnClickListener {
                 dialog.dismiss()
                 if (mode != modeValue) {
@@ -371,11 +546,11 @@ class ImageViewerActivity : BaseActivity() {
             }
             return row
         }
-        box.addView(modeRow(R.string.mode_page_vertical, MODE_PAGE_VERTICAL))
-        box.addView(modeRow(R.string.mode_page_horizontal, MODE_PAGE_HORIZONTAL))
+        box.addView(modeRow(R.string.mode_page_free, MODE_PAGE_FREE))
         box.addView(modeRow(R.string.mode_continuous, MODE_CONTINUOUS))
+        box.addView(modeRow(R.string.mode_card_stack, MODE_CARD_STACK))
 
-        val autoRow = Switch(this).apply {
+        val autoRow = SwitchMaterial(this).apply {
             text = getString(R.string.auto_scroll)
             textSize = 16f
             isChecked = autoScrolling
@@ -491,56 +666,50 @@ class ImageViewerActivity : BaseActivity() {
         }
     }
 
+    /** The pager serving the current paged mode. */
+    private fun paged(): PagedReader = if (mode == MODE_CARD_STACK) binding.cardStack else binding.freePager
+
+    /** A paged mode landed on [position]. */
+    private fun onPaged(position: Int) {
+        currentIndex = position
+        updateOverlay()
+    }
+
     /**
-     * Pages for the paged modes: a zoomable image per page
+     * Fills a page of either paged mode. The tag holds the position the page was
+     * asked for, so a page already recycled to another image ignores a load that is
+     * still in flight.
      */
-    inner class ViewerAdapter(private val items: List<ImageInfo>) : RecyclerView.Adapter<ViewerAdapter.ViewHolder>() {
-
-        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-            val view = ZoomableImageView(parent.context)
-            view.layoutParams = RecyclerView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
-            view.onSingleTap = { toggleOverlay() }
-            return ViewHolder(view)
-        }
-
-        override fun getItemCount() = items.size
-
-        override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-            holder.bind(items[position], position)
-        }
-
-        inner class ViewHolder(val view: ZoomableImageView) : RecyclerView.ViewHolder(view) {
-            fun bind(item: ImageInfo, position: Int) {
-                view.setZoomableBitmap(null)
-                view.tag = item.uri
-                lifecycleScope.launch {
-                    var bitmap: Bitmap? = null
-                    try {
-                        bitmap = withContext(Dispatchers.IO) { getFullBitmap(item) }
-                    } catch (e: SmbImageLoader.SmbAuthRequiredException) {
-                        withContext(Dispatchers.Main) { promptSmbCredentials(e.host) }
-                    } catch (ignored: Exception) {
-                    }
-                    if (view.tag == item.uri) view.setZoomableBitmap(bitmap)
-                    if (bitmap != null) withContext(Dispatchers.IO) { prefetch(position + 1) }
-                }
-            }
-        }
-
-        /**
-         * Decode the next page ahead of time so vertical swiping feels instant,
-         * especially over slow network shares.
-         */
-        private suspend fun prefetch(position: Int) {
-            val item = items.getOrNull(position) ?: return
-            val key = "img_full_${item.uri}_${decodeWidth}x$decodeHeight"
-            if (BitmapCache.getBitmapFromMemCache(key) != null) return
+    private fun loadPage(view: ZoomableImageView, position: Int) {
+        val item = images.getOrNull(position) ?: return
+        view.setZoomableBitmap(null)
+        view.tag = position
+        lifecycleScope.launch {
+            var bitmap: Bitmap? = null
             try {
-                ImageRepository.decodeSampledBitmap(applicationContext, item.uri, decodeWidth, decodeHeight)?.let {
-                    BitmapCache.addBitmapToMemCache(key, it)
-                }
+                bitmap = withContext(Dispatchers.IO) { getFullBitmap(item) }
+            } catch (e: SmbImageLoader.SmbAuthRequiredException) {
+                withContext(Dispatchers.Main) { promptSmbCredentials(e.host) }
             } catch (ignored: Exception) {
             }
+            if (view.tag == position) view.setZoomableBitmap(bitmap)
+            if (bitmap != null) withContext(Dispatchers.IO) { prefetchPage(position + 2) }
+        }
+    }
+
+    /**
+     * Decodes past the pages the pagers keep warm, so turning pages feels instant,
+     * especially over slow network shares.
+     */
+    private suspend fun prefetchPage(position: Int) {
+        val item = images.getOrNull(position) ?: return
+        val key = "img_full_${item.uri}_${decodeWidth}x$decodeHeight"
+        if (BitmapCache.getBitmapFromMemCache(key) != null) return
+        try {
+            ImageRepository.decodeSampledBitmap(applicationContext, item.uri, decodeWidth, decodeHeight)?.let {
+                BitmapCache.addBitmapToMemCache(key, it)
+            }
+        } catch (ignored: Exception) {
         }
     }
 
@@ -722,12 +891,12 @@ class ImageViewerActivity : BaseActivity() {
     }
 
     private fun refreshCurrentImage() {
-        when {
-            mode == MODE_CONTINUOUS && binding.strip.adapter != null -> {
-                val adapter = binding.strip.adapter as? StripAdapter ?: return
-                adapter.notifyItemRangeChanged(currentIndex, 2)
-            }
-            binding.pager.adapter != null -> binding.pager.adapter?.notifyDataSetChanged()
+        if (mode == MODE_CONTINUOUS) {
+            val adapter = binding.strip.adapter as? StripAdapter ?: return
+            adapter.notifyItemRangeChanged(currentIndex, 2)
+        } else {
+            // rebuild the deck: its pages ask for their bitmap again
+            paged().setPages(images.size, currentIndex)
         }
     }
 }

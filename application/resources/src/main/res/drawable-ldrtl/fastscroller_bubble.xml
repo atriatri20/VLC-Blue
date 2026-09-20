@@ -32,7 +32,7 @@
         android:bottomRightRadius="@dimen/fastscroller_handle_corner"
         android:bottomLeftRadius="0dp" />
 
-    <solid android:color="@color/orange800" />
+    <solid android:color="@color/orange500" />
 
     <size
         android:height="@dimen/fastscroller_handle_size"

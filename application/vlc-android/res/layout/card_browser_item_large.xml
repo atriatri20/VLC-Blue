@@ -206,13 +206,6 @@
                         android:layout_height="wrap_content"
                         android:visibility="gone" />
 
-                <!-- Kept only for binding compatibility: the file count is not displayed -->
-                <TextView
-                        android:id="@+id/text"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:visibility="gone" />
-
             </androidx.constraintlayout.widget.ConstraintLayout>
 
         </com.google.android.material.card.MaterialCardView>
@@ -231,6 +224,20 @@
                 android:textSize="13sp"
                 android:visibility="@{hideText ? View.INVISIBLE : View.VISIBLE}"
                 tools:text="filename" />
+
+        <!-- item counts (folders/files), styled like the local album cards -->
+        <TextView
+                android:id="@+id/text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="2dp"
+                android:ellipsize="end"
+                android:gravity="center_horizontal"
+                android:lines="1"
+                android:textColor="?attr/list_subtitle"
+                android:textSize="11sp"
+                android:visibility="gone"
+                tools:text="25 files" />
 
     </LinearLayout>
 

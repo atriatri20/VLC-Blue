@@ -95,7 +95,7 @@ android {
         // Standalone build variant to install the image-browser mod alongside an existing VLC
         imageMod {
             initWith release
-            applicationIdSuffix ".images"
+            applicationIdSuffix ".blue"
             matchingFallbacks = ['release']
             signingConfig = signingConfigs.release
         }

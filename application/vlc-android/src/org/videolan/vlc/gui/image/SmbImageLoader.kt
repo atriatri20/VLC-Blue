@@ -21,7 +21,11 @@
  */
 package org.videolan.vlc.gui.image
 
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.Network
 import android.net.Uri
+import android.util.Log
 import jcifs.CIFSContext
 import jcifs.config.PropertyConfiguration
 import jcifs.context.BaseContext
@@ -33,8 +37,13 @@ import jcifs.smb.SmbRandomAccessFile
 import org.videolan.resources.AppContextProvider
 import org.videolan.tools.Settings
 import java.io.InputStream
+import java.net.ConnectException
+import java.net.NoRouteToHostException
+import java.net.SocketTimeoutException
 import java.net.URLDecoder
+import java.net.UnknownHostException
 import java.util.Properties
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Minimal read-only SMB2/3 client used to decode images stored on network shares.
@@ -46,17 +55,41 @@ import java.util.Properties
  * entered once through the viewer prompt), then guest, then anonymous. If every
  * attempt fails with an authentication error, [SmbAuthRequiredException] is
  * thrown so the caller can prompt the user.
+ *
+ * Hosts that answer with a connectivity error (rather than an auth error) are
+ * remembered as unreachable for [DEAD_HOST_TTL_MS]; browsing code can skip them
+ * with [isKnownDead] instead of paying the timeout again on every row. The list
+ * is reset as soon as the device attaches to another network.
  */
 object SmbImageLoader {
 
+    private const val DEAD_HOST_TTL_MS = 5 * 60 * 1000L
+    private const val NETWORK_RECHECK_MS = 1000L
+    private const val TAG = "SmbImageLoader"
+
     private val baseContext: CIFSContext by lazy {
         val props = Properties().apply {
-            setProperty("jcifs.smb.client.connTimeout", "10000")
-            setProperty("jcifs.smb.client.responseTimeout", "10000")
-            setProperty("jcifs.smb.client.soTimeout", "15000")
+            setProperty("jcifs.smb.client.connTimeout", "3000")
+            setProperty("jcifs.smb.client.responseTimeout", "5000")
+            setProperty("jcifs.smb.client.soTimeout", "8000")
         }
         BaseContext(PropertyConfiguration(props))
     }
+
+    private val connectivityManager: ConnectivityManager? by lazy {
+        runCatching {
+            AppContextProvider.appContext.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+        }.getOrNull()
+    }
+
+    /** host -> time it last failed to answer */
+    private val deadHosts = ConcurrentHashMap<String, Long>()
+
+    @Volatile
+    private var lastActiveNetwork: Network? = null
+
+    @Volatile
+    private var lastNetworkCheck = 0L
 
     class SmbAuthRequiredException(val host: String) : Exception("SMB authentication required for $host")
 
@@ -81,7 +114,9 @@ object SmbImageLoader {
 
     /**
      * Open a smb:// uri for reading. SmbFile connects lazily, so each candidate
-     * credential set is tried at stream open time.
+     * credential set is tried at stream open time. This entry point always
+     * probes the host, even a [isKnownDead] one: it is reached from deliberate
+     * actions (opening an image), where a retry is what the user asked for.
      */
     fun openStream(uri: Uri): InputStream? {
         val url = buildUrl(uri) ?: return null
@@ -89,10 +124,15 @@ object SmbImageLoader {
         var authFailure = false
         for (context in credentialContexts(uri, host)) {
             try {
-                return SmbFileInputStream(SmbFile(url, context))
+                val stream = SmbFileInputStream(SmbFile(url, context))
+                markAlive(host)
+                return stream
             } catch (e: SmbAuthException) {
                 authFailure = true
-            } catch (ignored: Exception) {
+            } catch (e: Exception) {
+                if (!isConnectivityFailure(e)) continue
+                markDead(host)
+                return null
             }
         }
         if (authFailure) throw SmbAuthRequiredException(host)
@@ -106,10 +146,82 @@ object SmbImageLoader {
         val url = buildUrl(uri) ?: return null
         val host = runCatching { uri.host }.getOrNull() ?: return null
         for (context in credentialContexts(uri, host)) {
-            val file = runCatching { SmbRandomAccessFile(SmbFile(url, context), "r") }.getOrNull() ?: continue
+            val file = try {
+                SmbRandomAccessFile(SmbFile(url, context), "r")
+            } catch (e: Exception) {
+                if (isConnectivityFailure(e)) markDead(host)
+                continue
+            }
+            markAlive(host)
             return file
         }
         return null
+    }
+
+    /**
+     * True while [host] is known to be unreachable. Speculative work (row
+     * thumbnails, folder covers) should be skipped for such a host; reading on
+     * the user's request still goes through.
+     */
+    fun isKnownDead(host: String?): Boolean {
+        if (host.isNullOrEmpty()) return false
+        revalidateNetwork()
+        val since = deadHosts[host] ?: return false
+        if (System.currentTimeMillis() - since > DEAD_HOST_TTL_MS) {
+            deadHosts.remove(host)
+            return false
+        }
+        return true
+    }
+
+    private fun markAlive(host: String?) {
+        if (host.isNullOrEmpty()) return
+        if (deadHosts.remove(host) != null) Log.i(TAG, "$host reachable again: resuming thumbnail probes")
+    }
+
+    private fun markDead(host: String) {
+        revalidateNetwork()
+        if (deadHosts.put(host, System.currentTimeMillis()) == null)
+            Log.w(TAG, "$host did not answer, skipping speculative SMB probes for ${DEAD_HOST_TTL_MS / 1000}s")
+    }
+
+    /**
+     * A share unreachable on one network says nothing about the next one, so the
+     * blacklist is dropped whenever the device attaches to a different network.
+     * Checked lazily instead of through a callback: thumbnails bind often enough
+     * to notice a switch, and the binder call itself is throttled.
+     */
+    private fun revalidateNetwork() {
+        val now = System.currentTimeMillis()
+        if (now - lastNetworkCheck < NETWORK_RECHECK_MS) return
+        lastNetworkCheck = now
+        val current = runCatching { connectivityManager?.activeNetwork }.getOrNull()
+        if (current != lastActiveNetwork) {
+            lastActiveNetwork = current
+            deadHosts.clear()
+        }
+    }
+
+    /**
+     * jcifs-ng reports an unreachable host as a plain SmbException wrapping the
+     * socket error, so the whole cause chain has to be walked. An auth error
+     * means the opposite: the host answered and only the credentials are wrong.
+     */
+    private fun isConnectivityFailure(error: Throwable): Boolean {
+        var cause: Throwable? = error
+        while (cause != null) {
+            when (cause) {
+                is SmbAuthException -> return false
+                is ConnectException, is SocketTimeoutException, is NoRouteToHostException,
+                is UnknownHostException -> return true
+            }
+            val message = cause.message?.lowercase()
+            if (message != null && (message.contains("timed out") || message.contains("connection refused") ||
+                            message.contains("no route to host") || message.contains("network is unreachable") ||
+                            message.contains("failed to connect"))) return true
+            cause = cause.cause
+        }
+        return false
     }
 
     private fun credentialContexts(uri: Uri, host: String): List<CIFSContext> {

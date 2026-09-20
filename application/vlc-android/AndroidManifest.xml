@@ -1015,6 +1015,9 @@
                 android:name=".gui.image.ImageBrowserActivity"
                 android:theme="@style/Theme.VLC" />
         <activity
+                android:name=".gui.image.ImageAlbumActivity"
+                android:theme="@style/Theme.VLC" />
+        <activity
                 android:name=".gui.image.ImageViewerActivity"
                 android:theme="@style/Theme.VLC.ImageViewer"
                 android:exported="true"

@@ -30,7 +30,7 @@
             android:bottomRightRadius="@dimen/fastscroller_reack_corner"
             android:topRightRadius="@dimen/fastscroller_reack_corner" />
 
-    <solid android:color="@color/orange800" />
+    <solid android:color="@color/orange500" />
 
     <size
             android:width="@dimen/fastscroller_track_width"

@@ -80,6 +80,7 @@ import org.videolan.resources.util.parcelable
 import org.videolan.tools.BROWSER_CARD_WIDTH
 import org.videolan.tools.BROWSER_DISPLAY_IN_CARDS
 import org.videolan.tools.BROWSER_HIDE_NAMES
+import org.videolan.tools.BROWSER_SHOW_COUNTS
 import org.videolan.tools.BROWSER_LARGE_CARDS
 import org.videolan.tools.BROWSER_SHOW_HIDDEN_FILES
 import org.videolan.tools.BROWSER_SHOW_ONLY_MULTIMEDIA
@@ -387,6 +388,12 @@ abstract class BaseBrowserFragment : MediaBrowserFragment<BrowserModel>(), IRefr
 
             BROWSER_HIDE_NAMES -> {
                 Settings.getInstance(requireActivity()).putSingle(BROWSER_HIDE_NAMES, value as Boolean)
+                binding.networkList.recycledViewPool.clear()
+                adapter.notifyDataSetChanged()
+            }
+
+            BROWSER_SHOW_COUNTS -> {
+                Settings.getInstance(requireActivity()).putSingle(BROWSER_SHOW_COUNTS, value as Boolean)
                 binding.networkList.recycledViewPool.clear()
                 adapter.notifyDataSetChanged()
             }
@@ -742,6 +749,7 @@ abstract class BaseBrowserFragment : MediaBrowserFragment<BrowserModel>(), IRefr
                     largeCards = settings.getBoolean(BROWSER_LARGE_CARDS, false),
                     cardWidth = settings.getInt(BROWSER_CARD_WIDTH, 100),
                     hideNames = settings.getBoolean(BROWSER_HIDE_NAMES, false),
+                    showCounts = settings.getBoolean(BROWSER_SHOW_COUNTS, true),
                 )
                     .show(requireActivity().supportFragmentManager, "DisplaySettingsDialog")
                 true

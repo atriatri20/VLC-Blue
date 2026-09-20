@@ -44,7 +44,7 @@ class PlayerProgress : View {
         get() = if (isDouble) value.toFloat() / 200 else value.toFloat() / 100
 
     private val progressColor = ContextCompat.getColor(context, R.color.white)
-    private val boostColor = ContextCompat.getColor(context, R.color.orange700)
+    private val boostColor = ContextCompat.getColor(context, R.color.orange500)
     private val shadowColor = ContextCompat.getColor(context, R.color.blacktransparent)
     private val backgroundColor = ContextCompat.getColor(context, R.color.white_transparent_50)
 

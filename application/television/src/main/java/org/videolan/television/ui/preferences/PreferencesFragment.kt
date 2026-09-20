@@ -36,6 +36,7 @@ import androidx.preference.Preference
 import androidx.preference.PreferenceScreen
 import org.videolan.medialibrary.interfaces.Medialibrary
 import org.videolan.tools.AUDIO_RESUME_PLAYBACK
+import org.videolan.tools.KEY_MEDIALIB_NETWORK_INDEX
 import org.videolan.tools.KEY_AUDIO_LAST_PLAYLIST
 import org.videolan.tools.KEY_CURRENT_AUDIO
 import org.videolan.tools.KEY_CURRENT_AUDIO_RESUME_ARTIST
@@ -96,6 +97,13 @@ class PreferencesFragment : BasePreferenceFragment(), SharedPreferences.OnShared
     override fun onPreferenceTreeClick(preference: Preference): Boolean {
         val context = activity ?: return false
         return when (preference.key) {
+            KEY_MEDIALIB_NETWORK_INDEX -> {
+                // the medialibrary consumes this flag on init only: a runtime
+                // toggle cannot restart the discoverer, so warn the user
+                Medialibrary.getInstance().setDiscoverNetworkEnabled((preference as CheckBoxPreference).isChecked)
+                Toast.makeText(context, getString(R.string.network_index_restart), Toast.LENGTH_SHORT).show()
+                true
+            }
             "directories" -> {
                 if (Medialibrary.getInstance().isWorking) {
                     Toast.makeText(

@@ -45,11 +45,13 @@ import org.videolan.medialibrary.media.Storage
 import org.videolan.resources.AndroidDevices
 import org.videolan.resources.UPDATE_SELECTION
 import org.videolan.tools.BROWSER_HIDE_NAMES
+import org.videolan.tools.BROWSER_SHOW_COUNTS
 import org.videolan.tools.BROWSER_LARGE_CARDS
 import org.videolan.tools.MultiSelectAdapter
 import org.videolan.tools.MultiSelectHelper
 import org.videolan.tools.Settings
 import org.videolan.vlc.R
+import org.videolan.vlc.gui.browser.BrowserThumbnails
 import org.videolan.vlc.databinding.BrowserItemBinding
 import org.videolan.vlc.databinding.BrowserItemSeparatorBinding
 import org.videolan.vlc.databinding.CardBrowserItemBinding
@@ -186,10 +188,22 @@ open class BaseBrowserAdapter(val browserContainer: BrowserContainer<MediaLibrar
             (holder as MediaViewHolder).bindingContainer.setProgress(holder.bindingContainer.container.context, progress, max)
             if (media.type != MediaWrapper.TYPE_AUDIO || media.isPodcast) holder.bindingContainer.setIsPlayed(holder.bindingContainer.container.context, media.playCount > 0)
         }  else if (payloads[0] is CharSequence) {
-            (holder as MediaViewHolder).bindingContainer.text.visibility = View.VISIBLE
-            holder.bindingContainer.text.text = (payloads[0] as CharSequence).getDescriptionSpan(holder.bindingContainer.text.context)
+            val bc = (holder as MediaViewHolder).bindingContainer
+            if (isLargeCards()) {
+                // the counts belong under the file name there, and honor the toggle
+                val showCounts = Settings.getInstance(bc.text.context).getBoolean(BROWSER_SHOW_COUNTS, true)
+                bc.text.text = (payloads[0] as CharSequence).getDescriptionSpan(bc.text.context)
+                bc.text.visibility = if (showCounts) View.VISIBLE else View.GONE
+            } else {
+                bc.text.visibility = View.VISIBLE
+                bc.text.text = (payloads[0] as CharSequence).getDescriptionSpan(bc.text.context)
+            }
             val item = getItem(position) as MediaWrapper
-            holder.bindingContainer.container.contentDescription = TalkbackUtil.getDir(holder.binding.root.context, item, item.hasStateFlags(MediaLibraryItem.FLAG_FAVORITE))
+            bc.container.contentDescription = TalkbackUtil.getDir(holder.binding.root.context, item, item.hasStateFlags(MediaLibraryItem.FLAG_FAVORITE))
+            // the folder cover candidate is registered while its listing is
+            // parsed, right before this description update arrives; re-run the
+            // (idempotent) thumbnail binding so async covers actually start
+            BrowserThumbnails.bind(bc, item)
         } else if (payloads[0] is Int) {
             val value = payloads[0] as Int
             if (value == UPDATE_SELECTION) holder.selectView(multiSelectHelper.isSelected(position))
@@ -215,7 +229,19 @@ open class BaseBrowserAdapter(val browserContainer: BrowserContainer<MediaLibrar
         if (networkRoot || (isFavorite && getProtocol(media)?.contains("file") == false)) vh.bindingContainer.setProtocol(getProtocol(media))
         vh.bindingContainer.setCover(getIcon(media, specialIcons))
         BrowserThumbnails.bind(vh.bindingContainer, media)
-        if (isLargeCards()) vh.bindingContainer.setHideText(Settings.getInstance(browserContainer.containerActivity().applicationContext).getBoolean(BROWSER_HIDE_NAMES, false))
+        if (isLargeCards()) {
+            vh.bindingContainer.setHideText(Settings.getInstance(browserContainer.containerActivity().applicationContext).getBoolean(BROWSER_HIDE_NAMES, false))
+            // item counts live below the file name in large-card mode (like the
+            // local album cards), behind the BROWSER_SHOW_COUNTS toggle
+            val showCounts = Settings.getInstance(browserContainer.containerActivity().applicationContext).getBoolean(BROWSER_SHOW_COUNTS, true)
+            val description = media.description
+            if (showCounts && !description.isNullOrEmpty()) {
+                vh.bindingContainer.text.text = description.getDescriptionSpan(vh.bindingContainer.text.context)
+                vh.bindingContainer.text.visibility = View.VISIBLE
+            } else {
+                vh.bindingContainer.text.visibility = View.GONE
+            }
+        }
         vh.selectView(multiSelectHelper.isSelected(position))
         itemFocusChanged(position, false, vh.bindingContainer)
         if (currentMedia == media) {

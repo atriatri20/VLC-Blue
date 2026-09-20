@@ -9,24 +9,26 @@
     Material color swatches
     The main color is always xxx500
 -->
-    <color name="orange50">#fff3e0</color>
-    <color name="orange100">#ffdfae</color>
-    <color name="orange200">#ffca7d</color>
-    <color name="orange300">#ffb54c</color>
-    <color name="orange400">#ffa11a</color>
-    <color name="orange500">#FF8800</color>
-    <color name="orange600">#ff7d00</color>
-    <color name="orange700">#ff7200</color>
-    <color name="orange800">#ff610a</color>
-    <color name="orange900">#ff5014</color>
+    <!-- VLC Blue edition: the orange* names keep their reference graph,
+         the accent palette values are Material Blue. -->
+    <color name="orange50">#e6f3ff</color>
+    <color name="orange100">#c7e4ff</color>
+    <color name="orange200">#9ed0ff</color>
+    <color name="orange300">#71b8fa</color>
+    <color name="orange400">#3e9ef7</color>
+    <color name="orange500">#128afa</color>
+    <color name="orange600">#107be0</color>
+    <color name="orange700">#0e6bc2</color>
+    <color name="orange800">#0b579e</color>
+    <color name="orange900">#084175</color>
 
     <color name="red500transparent_10">#1aff0000</color>
     <color name="red500transparent25">#40ff0000</color>
     <color name="red500transparent">#b4ff0000</color>
     <color name="red200">#EF9A9A</color>
-    <color name="orange500transparent">#b4ff8800</color>
-    <color name="orange500focus">#86ff8800</color>
-    <color name="orange200transparent">#64ffca7d</color>
+    <color name="orange500transparent">#b4128afa</color>
+    <color name="orange500focus">#86128afa</color>
+    <color name="orange200transparent">#649ed0ff</color>
 
     <color name="green50">#bdeadd</color>
     <color name="green100">#a7e3d1</color>
@@ -53,7 +55,7 @@
     <color name="grey900">#212121</color>
 
     <color name="action_mode_dark">@color/grey875</color>
-    <color name="action_mode_light">#fff3e0</color>
+    <color name="action_mode_light">#e6f3ff</color>
 
 
     <color name="dark_background">#131313</color>
@@ -112,9 +114,11 @@
     <color name="black_transparent_80">#cc000000</color>
     <color name="black_transparent_90">#E6000000</color>
 
-    <color name="orange_800_transparent_10">#1aff610a</color>
-    <color name="orange_800_transparent_20">#33ff610a</color>
-    <color name="orange_500_transparent_20">#33FF8800</color>
+    <color name="orange_800_transparent_10">#1a0b579e</color>
+    <color name="orange_800_transparent_20">#330b579e</color>
+    <color name="orange_500_transparent_20">#33128afa</color>
+    <color name="orange_500_transparent_10">#1a128afa</color>
+    <color name="vlc_dialog_bg">#1E1E1E</color>
 
     <color name="tv_bg">#34434e</color>
     <color name="tv_card_content">#34434e</color>

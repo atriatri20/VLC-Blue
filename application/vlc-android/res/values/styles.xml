@@ -23,17 +23,17 @@
         <item name="textInputStyle">@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox
         </item>
 
-        <item name="colorPrimary">@color/orange800</item>
+        <item name="colorPrimary">@color/orange500</item>
         <item name="colorPrimaryDark">@color/orange700</item>
-        <item name="colorSecondary">@color/orange800</item>
+        <item name="colorSecondary">@color/orange500</item>
         <item name="colorOnSecondary">@color/grey50</item>
         <item name="colorOnPrimary">@color/white</item>
-        <item name="colorAccent">@color/orange800</item>
+        <item name="colorAccent">@color/orange500</item>
         <item name="windowActionModeOverlay">true</item>
         <item name="actionModeTheme">@style/ThemeOverlay.ActionMode</item>
         <item name="actionModeStyle">@style/ActionMode</item>
         <item name="colorOnSurface">@color/black</item>
-        <item name="colorControlHighlight">@color/orange800</item>
+        <item name="colorControlHighlight">@color/orange600</item>
         <item name="colorControlNormal">@color/grey700</item>
 
 
@@ -58,7 +58,7 @@
         <item name="background_actionbar">@color/white</item>
         <item name="audio_player_background_tint">@color/white_transparent_75</item>
         <item name="background_audio_tips">@color/white_transparent_95</item>
-        <item name="audio_browser_separator">@color/orange800</item>
+        <item name="audio_browser_separator">@color/orange500</item>
         <item name="dialog_circle_background">@color/dialog_circle_background</item>
         <item name="font_default">@color/grey900</item>
         <item name="font_light">@color/grey700</item>
@@ -71,12 +71,12 @@
         <item name="android:windowBackground">@color/white</item>
         <item name="audio_chips_color">@color/black_transparent_75</item>
         <item name="audio_chips_text_color">@color/white_transparent_60</item>
-        <item name="bottom_navigation_focus">@color/orange_800_transparent_10</item>
+        <item name="bottom_navigation_focus">@color/orange_500_transparent_10</item>
         <item name="scan_background">@drawable/rounded_corners_scan_progress</item>
         <item name="otp_code_background">@drawable/rounded_corners_otp_code</item>
         <item name="fast_scroller_bubble">@drawable/fastscroller_bubble</item>
         <item name="fast_scroller_handle">@drawable/fastscroller_handle</item>
-        <item name="primary_focus">@color/orange_800_transparent_20</item>
+        <item name="primary_focus">@color/orange_500_transparent_20</item>
         <item name="swipe_refresh_background">?attr/background_default</item>
         <item name="dialogButtonStyle">@style/Widget.MaterialComponents.Button.TextButton.Dialog</item>
         <item name="permission_explanation_background">@color/grey200</item>
@@ -108,7 +108,9 @@
         <item name="about_text_primary">@color/black</item>
         <item name="widget_preview_rounded_bg">@drawable/rounded_top_corners_left_background</item>
         <item name="sliderStyle">@style/VLC.Slider</item>
-    </style>
+        <item name="alertDialogTheme">@style/ThemeOverlay.VLC.Dialog.Light</item>
+        <item name="materialAlertDialogTheme">@style/ThemeOverlay.VLC.Dialog.Light</item>
+</style>
 
     <style name="VLC.Slider" parent="Widget.MaterialComponents.Slider">
         <item name="labelStyle">@style/VLC.Tooltip</item>
@@ -124,7 +126,7 @@
 
     <style name="VLC.Tooltip" parent="Widget.MaterialComponents.Tooltip">
         <item name="android:textAppearance">@style/TextAppearance.VLC.Tooltip</item>
-        <item name="backgroundTint">@color/orange800</item>
+        <item name="backgroundTint">@color/orange600</item>
     </style>
     <style name="VLC.Tooltip.Dark" parent="Widget.MaterialComponents.Tooltip">
         <item name="android:textAppearance">@style/TextAppearance.VLC.Tooltip</item>
@@ -188,7 +190,7 @@
 
     <style name="Theme.VLC.SendCrashDialog" parent="Theme.MaterialComponents.Dialog">
         <item name="windowNoTitle">true</item>
-        <item name="colorPrimary">@color/orange800</item>
+        <item name="colorPrimary">@color/orange500</item>
         <item name="colorPrimaryDark">@color/orange700</item>
         <item name="colorAccent">@color/orange500</item>
     </style>
@@ -303,7 +305,9 @@
         <item name="about_text_primary">@color/orange500</item>
         <item name="widget_preview_rounded_bg">@drawable/rounded_top_corners_left_background_dark</item>
         <item name="sliderStyle">@style/VLC.Slider.Dark</item>
-    </style>
+            <item name="alertDialogTheme">@style/ThemeOverlay.VLC.Dialog</item>
+        <item name="materialAlertDialogTheme">@style/ThemeOverlay.VLC.Dialog</item>
+</style>
 
 
     <style name="ActionMode" parent="Widget.AppCompat.ActionBar.Solid">
@@ -312,10 +316,10 @@
         <item name="subtitleTextStyle">@style/ActionModeSubtitleTextStyle</item>
     </style>
     <style name="ActionModeTitleTextStyle" parent="@style/TextAppearance.AppCompat.Widget.ActionMode.Title">
-        <item name="android:textColor">@color/orange800</item>
+        <item name="android:textColor">@color/orange500</item>
     </style>
     <style name="ActionModeSubtitleTextStyle" parent="@style/TextAppearance.AppCompat.Widget.ActionMode.Subtitle">
-        <item name="android:textColor">@color/orange800</item>
+        <item name="android:textColor">@color/orange500</item>
     </style>
 
     <style name="ActionMode.Dark" parent="Widget.AppCompat.ActionBar.Solid">
@@ -331,7 +335,7 @@
     </style>
 
     <style name="ThemeOverlay.ActionMode" parent="ThemeOverlay.AppCompat.ActionBar">
-        <item name="colorControlNormal">@color/orange800</item>
+        <item name="colorControlNormal">@color/orange500</item>
     </style>
     <style name="ThemeOverlay.ActionMode.Dark" parent="ThemeOverlay.AppCompat.Dark.ActionBar">
         <item name="colorControlNormal">@color/orange500</item>
@@ -345,7 +349,7 @@
     </style>
 
     <style name="Theme.VLC.TV" parent="Theme.Leanback">
-        <item name="colorPrimary">@color/orange800</item>
+        <item name="colorPrimary">@color/orange500</item>
         <item name="colorPrimaryDark">@color/transparent</item>
         <item name="colorAccent">@color/orange600</item>
         <item name="font_default">@color/white</item>
@@ -390,8 +394,8 @@
     </style>
 
     <style name="Theme.VLC.TV.Audio">
-        <item name="colorPrimary">@color/orange800</item>
-        <item name="colorAccent">@color/orange800</item>
+        <item name="colorPrimary">@color/orange500</item>
+        <item name="colorAccent">@color/orange500</item>
     </style>
 
     <style name="VLCardView" parent="Widget.Leanback.ImageCardViewStyle">
@@ -474,7 +478,7 @@
     </style>
 
     <style name="Theme.VLC.Transparent" parent="Theme.MaterialComponents.NoActionBar">
-        <item name="colorPrimary">@color/orange800</item>
+        <item name="colorPrimary">@color/orange500</item>
         <item name="colorPrimaryDark">@color/transparent</item>
         <item name="colorAccent">@color/orange500</item>
         <item name="android:colorAccent">@color/orange500</item>
@@ -494,11 +498,17 @@
     <style name="Theme.VLC.Player" parent="Theme.VLC.Player.7" />
 
     <style name="Theme.VLC.ImageViewer" parent="Theme.MaterialComponents.NoActionBar">
+        <item name="colorPrimary">@color/orange500</item>
+        <item name="colorSecondary">@color/orange500</item>
+        <item name="colorAccent">@color/orange500</item>
+        <item name="colorControlActivated">@color/orange500</item>
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowFullscreen">true</item>
         <item name="android:windowBackground">@android:color/black</item>
         <item name="android:windowLayoutInDisplayCutoutMode" tools:targetApi="p">shortEdges</item>
-    </style>
+            <item name="alertDialogTheme">@style/ThemeOverlay.VLC.Dialog</item>
+        <item name="materialAlertDialogTheme">@style/ThemeOverlay.VLC.Dialog</item>
+</style>
 
     <style name="Theme.VLC.Player.7" parent="Theme.MaterialComponents.NoActionBar">
         <item name="android:windowNoTitle">true</item>
@@ -514,7 +524,7 @@
         <item name="bottom_sheet_radius">4dp</item>
 
 
-        <item name="colorPrimary">@color/orange800</item>
+        <item name="colorPrimary">@color/orange500</item>
         <item name="colorPrimaryDark">@color/transparent</item>
         <item name="colorAccent">@color/orange500</item>
         <item name="background_default_darker">@color/grey875</item>
@@ -765,7 +775,7 @@
     <!-- Tips Apearance-->
 
     <style name="TipsFontStyle">
-        <item name="android:textColor">@color/orange700</item>
+        <item name="android:textColor">@color/orange500</item>
         <item name="android:textStyle">bold</item>
     </style>
 
@@ -861,6 +871,50 @@
         <item name="strokeWidth">1dp</item>
         <item name="cardCornerRadius">4dp</item>
         <item name="cardElevation">0dp</item>
+    </style>
+
+    <!-- VLC Blue dialog surface: rounded #1e1e1e card, brand blue accent -->
+    <style name="ShapeAppearance.VLC.Dialog" parent="ShapeAppearance.MaterialComponents.MediumComponent">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">20dp</item>
+    </style>
+
+    <style name="Widget.VLC.Dialog.Button" parent="Widget.MaterialComponents.Button.TextButton.Dialog">
+        <item name="android:textColor">@color/orange500</item>
+        <item name="rippleColor">@color/orange_500_transparent_10</item>
+    </style>
+
+    <style name="ThemeOverlay.VLC.Dialog" parent="Theme.MaterialComponents.Dialog.Alert">
+        <item name="colorPrimary">@color/orange500</item>
+        <item name="colorSecondary">@color/orange500</item>
+        <item name="colorControlActivated">@color/orange500</item>
+        <item name="android:colorBackground">@color/vlc_dialog_bg</item>
+        <item name="colorSurface">@color/vlc_dialog_bg</item>
+        <item name="android:windowBackground">@drawable/vlc_dialog_background</item>
+        <item name="shapeAppearanceMediumComponent">@style/ShapeAppearance.VLC.Dialog</item>
+        <item name="android:textColorPrimary">@color/white</item>
+        <item name="android:textColorSecondary">#B3FFFFFF</item>
+        <item name="android:textColorHint">#80FFFFFF</item>
+        <item name="buttonBarPositiveButtonStyle">@style/Widget.VLC.Dialog.Button</item>
+        <item name="buttonBarNegativeButtonStyle">@style/Widget.VLC.Dialog.Button</item>
+        <item name="buttonBarNeutralButtonStyle">@style/Widget.VLC.Dialog.Button</item>
+    </style>
+
+    <!-- 亮色主题下的弹窗：白色圆角卡片 + 深色文字，强调色仍为品牌蓝 -->
+    <style name="ThemeOverlay.VLC.Dialog.Light" parent="Theme.MaterialComponents.Light.Dialog.Alert">
+        <item name="colorPrimary">@color/orange500</item>
+        <item name="colorSecondary">@color/orange500</item>
+        <item name="colorControlActivated">@color/orange500</item>
+        <item name="android:colorBackground">@color/white</item>
+        <item name="colorSurface">@color/white</item>
+        <item name="android:windowBackground">@drawable/vlc_dialog_background_light</item>
+        <item name="shapeAppearanceMediumComponent">@style/ShapeAppearance.VLC.Dialog</item>
+        <item name="android:textColorPrimary">#DE000000</item>
+        <item name="android:textColorSecondary">#8A000000</item>
+        <item name="android:textColorHint">#61000000</item>
+        <item name="buttonBarPositiveButtonStyle">@style/Widget.VLC.Dialog.Button</item>
+        <item name="buttonBarNegativeButtonStyle">@style/Widget.VLC.Dialog.Button</item>
+        <item name="buttonBarNeutralButtonStyle">@style/Widget.VLC.Dialog.Button</item>
     </style>
 
 </resources>

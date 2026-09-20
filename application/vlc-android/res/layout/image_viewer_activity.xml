@@ -7,10 +7,16 @@
             android:layout_height="match_parent"
             android:background="@android:color/black">
 
-        <androidx.viewpager2.widget.ViewPager2
-                android:id="@+id/pager"
+        <org.videolan.vlc.gui.image.FreePagerView
+                android:id="@+id/free_pager"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent" />
+
+        <org.videolan.vlc.gui.image.CardStackPager
+                android:id="@+id/card_stack"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:visibility="gone" />
 
         <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/strip"
@@ -43,7 +49,7 @@
                 android:contentDescription="@string/auto_scroll"
                 android:src="@drawable/ic_auto_scroll"
                 android:visibility="gone"
-                app:backgroundTint="#CCF28B14"
+                app:backgroundTint="#CC128AFA"
                 app:tint="@color/white" />
 
         <LinearLayout
@@ -95,6 +101,16 @@
                     android:padding="8dp"
                     android:contentDescription="@string/viewer_mode"
                     android:src="@drawable/ic_viewer_mode"
+                    app:tint="@color/white" />
+
+            <ImageView
+                    android:id="@+id/slideshow_button"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:layout_marginStart="8dp"
+                    android:padding="8dp"
+                    android:contentDescription="@string/image_slideshow"
+                    android:src="@drawable/ic_slideshow_play"
                     app:tint="@color/white" />
 
             <ImageView

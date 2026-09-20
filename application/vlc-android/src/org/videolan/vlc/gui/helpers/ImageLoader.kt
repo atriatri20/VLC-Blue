@@ -36,6 +36,7 @@ import org.videolan.medialibrary.interfaces.media.Folder
 import org.videolan.medialibrary.interfaces.media.MediaWrapper
 import org.videolan.medialibrary.media.DummyItem
 import org.videolan.medialibrary.media.MediaLibraryItem
+import org.videolan.vlc.gui.browser.BrowserThumbnails
 import org.videolan.resources.DUMMY_NEW_GROUP
 import org.videolan.resources.HEADER_MOVIES
 import org.videolan.resources.HEADER_TV_SHOW
@@ -73,6 +74,17 @@ fun loadImage(v: View, item: MediaLibraryItem?, imageWidth: Int = 0, tv: Boolean
     val isMedia = item.itemType == MediaLibraryItem.TYPE_MEDIA
     if (!Settings.showVideoThumbs && ((isMedia && (item as MediaWrapper).type == MediaWrapper.TYPE_VIDEO) || item.itemType == MediaLibraryItem.TYPE_VIDEO_GROUP || item is Folder) ) {
         updateImageView(UiTools.getDefaultVideoDrawable(v.context).bitmap, v, binding, tv = tv, card = card)
+        return
+    }
+    // Browser rows (file/network browsing, id == 0: image files, folders and smb
+    // videos) go through the browser thumbnail pipeline: the generic path below
+    // cannot decode smb:// content and would paint the unknown icon over results
+    // arriving from the caches. Only the TV item layouts bind vlc:media, so the
+    // phone browser rows keep their own explicit bind() call.
+    if (v is ImageView && item is MediaWrapper && item.id == 0L && (BrowserThumbnails.isImage(item)
+                || item.type == MediaWrapper.TYPE_DIR
+                || (item.type == MediaWrapper.TYPE_VIDEO && item.uri?.scheme == "smb"))) {
+        BrowserThumbnails.bind(v, item)
         return
     }
     val isGroup = isMedia && item.itemType == MediaLibraryItem.TYPE_VIDEO_GROUP

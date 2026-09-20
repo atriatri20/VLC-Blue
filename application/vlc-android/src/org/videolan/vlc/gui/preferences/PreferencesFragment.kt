@@ -38,6 +38,7 @@ import org.videolan.libvlc.util.AndroidUtil
 import org.videolan.medialibrary.interfaces.Medialibrary
 import org.videolan.resources.util.parcelable
 import org.videolan.tools.AUDIO_RESUME_PLAYBACK
+import org.videolan.tools.KEY_MEDIALIB_NETWORK_INDEX
 import org.videolan.tools.KEY_AUDIO_LAST_PLAYLIST
 import org.videolan.tools.KEY_CURRENT_AUDIO
 import org.videolan.tools.KEY_CURRENT_AUDIO_RESUME_ARTIST
@@ -148,6 +149,12 @@ class PreferencesFragment : BasePreferenceFragment(), SharedPreferences.OnShared
 
     override fun onPreferenceTreeClick(preference: Preference): Boolean {
         when (preference.key) {
+            KEY_MEDIALIB_NETWORK_INDEX -> {
+                // the medialibrary consumes this flag on init only: a runtime
+                // toggle cannot restart the discoverer, so warn the user
+                Medialibrary.getInstance().setDiscoverNetworkEnabled((preference as CheckBoxPreference).isChecked)
+                UiTools.snacker(requireActivity(), getString(R.string.network_index_restart))
+            }
             "directories" -> {
                 if (Medialibrary.getInstance().isWorking) {
                     UiTools.snacker(requireActivity(), getString(R.string.settings_ml_block_scan))

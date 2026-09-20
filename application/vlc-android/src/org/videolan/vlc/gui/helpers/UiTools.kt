@@ -495,7 +495,7 @@ object UiTools {
                     logoAnimationRunning = false
                 }
                 val partyRight = Party(
-                    colors = listOf(ContextCompat.getColor(activity, R.color.orange200), ContextCompat.getColor(activity, R.color.orange800), ContextCompat.getColor(activity, R.color.orange500)),
+                    colors = listOf(ContextCompat.getColor(activity, R.color.orange200), ContextCompat.getColor(activity, R.color.orange300), ContextCompat.getColor(activity, R.color.orange500)),
                     angle = 0,
                     spread = 60,
                     speed = 3f,
@@ -511,7 +511,7 @@ object UiTools {
                 )
                 konfettiView.start(partyRight)
                 val partyLeft = Party(
-                    colors = listOf(ContextCompat.getColor(activity, R.color.orange200), ContextCompat.getColor(activity, R.color.orange800), ContextCompat.getColor(activity, R.color.orange500)),
+                    colors = listOf(ContextCompat.getColor(activity, R.color.orange200), ContextCompat.getColor(activity, R.color.orange300), ContextCompat.getColor(activity, R.color.orange500)),
                     angle = 180,
                     spread = 60,
                     speed = 3f,

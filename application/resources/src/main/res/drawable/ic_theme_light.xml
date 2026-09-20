@@ -78,13 +78,13 @@
   <path
       android:pathData="M2.406,0L84.594,0C85.923,-0 87,1.077 87,2.406L87,14.438L87,14.438L0,14.438L0,2.406C-0,1.077 1.077,0 2.406,0Z"
       android:strokeWidth="1"
-      android:fillColor="#FF610A"
+      android:fillColor="#128afa"
       android:fillType="evenOdd"
       android:strokeColor="#00000000"/>
   <path
       android:pathData="M72.188,139.563m-7.219,0a7.219,7.219 0,1 1,14.438 0a7.219,7.219 0,1 1,-14.438 0"
       android:strokeWidth="1"
-      android:fillColor="#FF610A"
+      android:fillColor="#128afa"
       android:fillType="evenOdd"
       android:strokeColor="#00000000"/>
 </vector>

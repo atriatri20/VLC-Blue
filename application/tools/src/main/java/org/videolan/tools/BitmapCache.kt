@@ -87,6 +87,12 @@ object BitmapCache {
         }
     }
 
+    /** Drops one entry so a regenerated bitmap can be stored again */
+    @Synchronized
+    fun removeBitmapFromMemCache(key: String?) {
+        if (key != null) memCache.remove(key)
+    }
+
     @Synchronized
     fun clear() {
         memCache.evictAll()

@@ -150,7 +150,7 @@ class MainTvFragment : BrowseSupportFragment(), OnItemViewSelectedListener, OnIt
             // set search icon color
             searchAffordanceColor = ContextCompat.getColor(requireContext(), R.color.orange600)
         }
-        brandColor = ContextCompat.getColor(requireContext(), R.color.orange900)
+        brandColor = ContextCompat.getColor(requireContext(), R.color.orange800)
         backgroundManager = BackgroundManager.getInstance(requireActivity()).apply { attach(requireActivity().window) }
         model = getMainTvModel()
         PlaybackService.serviceFlow.onEach { onServiceChanged(it) }

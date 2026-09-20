@@ -33,8 +33,10 @@ import org.videolan.television.ui.TvItemAdapter
 import org.videolan.television.ui.TvUtil
 import org.videolan.tools.isStarted
 import org.videolan.vlc.gui.DialogActivity
+import org.videolan.vlc.gui.browser.BrowserThumbnails
 import org.videolan.vlc.gui.browser.PathAdapter
 import org.videolan.vlc.gui.browser.PathAdapterListener
+import org.videolan.vlc.gui.image.ImageViewerActivity
 import org.videolan.vlc.gui.view.EmptyLoadingState
 import org.videolan.vlc.gui.view.VLCDividerItemDecoration
 import org.videolan.vlc.interfaces.IEventsHandler
@@ -278,6 +280,18 @@ class FileBrowserTvFragment : BaseBrowserTvFragment<MediaLibraryItem>(), PathAda
 
         mediaWrapper.removeFlags(MediaWrapper.MEDIA_FORCE_AUDIO)
         if (mediaWrapper.type == MediaWrapper.TYPE_DIR) browse(mediaWrapper, true)
+        else if (BrowserThumbnails.isImage(mediaWrapper)) {
+            // Pure image browsing: open the viewer on every image of the folder,
+            // same as the phone browser; images must not reach the video player
+            lifecycleScope.launch {
+                val entries = (viewModel as BrowserModel).dataset.getList()
+                        .filterIsInstance<MediaWrapper>()
+                        .filter { BrowserThumbnails.isImage(it) }
+                        .map { it.uri.toString() }
+                val index = entries.indexOfFirst { it == mediaWrapper.uri.toString() }
+                startActivity(ImageViewerActivity.folderIntent(requireContext(), entries, index.coerceAtLeast(0)))
+            }
+        }
         else TvUtil.openMedia(requireActivity(), item, viewModel as BrowserModel)
     }
 

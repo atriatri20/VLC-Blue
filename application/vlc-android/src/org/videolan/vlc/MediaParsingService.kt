@@ -88,6 +88,7 @@ import org.videolan.resources.util.registerReceiverCompat
 import org.videolan.resources.util.startForegroundCompat
 import org.videolan.resources.util.stopForegroundCompat
 import org.videolan.tools.KEY_MEDIALIBRARY_AUTO_RESCAN
+import org.videolan.tools.KEY_MEDIALIB_NETWORK_INDEX
 import org.videolan.tools.KEY_MEDIALIBRARY_SCAN
 import org.videolan.tools.ML_SCAN_OFF
 import org.videolan.tools.Settings
@@ -552,7 +553,7 @@ class MediaParsingService : LifecycleService(), DevicesDiscoveryCb {
                     addDevices(context, action.parse)
                     val initCode = medialibrary.init(context)
                     medialibrary.setLibVLCInstance((VLCInstance.getInstance(context) as LibVLC).instance)
-                    medialibrary.setDiscoverNetworkEnabled(true)
+                    medialibrary.setDiscoverNetworkEnabled(settings.getBoolean(KEY_MEDIALIB_NETWORK_INDEX, false))
                     if (initCode == Medialibrary.ML_INIT_DB_UNRECOVERABLE) {
                         throw IllegalStateException("Medialibrary DB file is corrupted and unrecoverable")
                     } else  if (initCode != Medialibrary.ML_INIT_ALREADY_INITIALIZED) {
