@@ -215,7 +215,7 @@ class ImageViewerActivity : BaseActivity() {
             true
         }
         binding.modeButton.setOnClickListener { showModeDialog() }
-        binding.autoScrollFab.setOnClickListener { toggleAutoScroll() }
+        binding.autoScrollButton.setOnClickListener { toggleAutoScroll() }
 
         binding.freePager.onImageLoad = { image, position -> loadPage(image, position) }
         binding.freePager.onSingleTap = { toggleOverlay() }
@@ -248,7 +248,7 @@ class ImageViewerActivity : BaseActivity() {
                 scrubberDragging = true
                 if (autoScrolling) {
                     autoScrolling = false
-                    syncFab()
+                    syncAutoScrollButton()
                     stopAutoScrollTick()
                 }
             }
@@ -326,7 +326,6 @@ class ImageViewerActivity : BaseActivity() {
                 binding.freePager.visibility = View.GONE
                 binding.cardStack.visibility = View.GONE
                 binding.strip.visibility = View.VISIBLE
-                binding.autoScrollFab.visibility = View.VISIBLE
                 stripWidth = binding.strip.width.takeIf { it > 0 } ?: metrics.widthPixels
                 // the strip has no zoom: screen-size decoding is enough, halves memory
                 stripDecodeWidth = metrics.widthPixels
@@ -343,10 +342,10 @@ class ImageViewerActivity : BaseActivity() {
                     stripPendingPositioning = false
                     if (binding.strip.width > 0) stripWidth = binding.strip.width
                 }
-                syncFab()
+                syncAutoScrollButton()
                 binding.pageScrubber.max = (images.size - 1).coerceAtLeast(0)
                 binding.pageScrubber.progress = currentIndex.coerceIn(0, images.size - 1)
-                binding.pageScrubber.visibility = if (overlayVisible) View.VISIBLE else View.GONE
+                binding.scrubberBar.visibility = if (overlayVisible) View.VISIBLE else View.GONE
                 if (autoScrolling) startAutoScrollTick()
                 startStripSizePrefetch()
             }
@@ -355,9 +354,8 @@ class ImageViewerActivity : BaseActivity() {
                 autoScrolling = false
                 sizePrefetchJob?.cancel()
                 binding.strip.visibility = View.GONE
-                binding.pageScrubber.visibility = View.GONE
+                binding.scrubberBar.visibility = View.GONE
                 binding.freePager.visibility = View.GONE
-                binding.autoScrollFab.visibility = View.GONE
                 binding.cardStack.visibility = View.VISIBLE
                 // the deck keeps three cards at once: screen-size decoding keeps that affordable
                 decodeWidth = metrics.widthPixels
@@ -369,9 +367,8 @@ class ImageViewerActivity : BaseActivity() {
                 autoScrolling = false
                 sizePrefetchJob?.cancel()
                 binding.strip.visibility = View.GONE
-                binding.pageScrubber.visibility = View.GONE
+                binding.scrubberBar.visibility = View.GONE
                 binding.cardStack.visibility = View.GONE
-                binding.autoScrollFab.visibility = View.GONE
                 binding.freePager.visibility = View.VISIBLE
                 decodeWidth = (metrics.widthPixels * DECODE_FACTOR).toInt()
                 decodeHeight = (metrics.heightPixels * DECODE_FACTOR).toInt()
@@ -385,7 +382,9 @@ class ImageViewerActivity : BaseActivity() {
     private fun updateOverlay() {
         val item = images.getOrNull(currentIndex)
         binding.imageName.text = item?.name ?: ""
-        binding.imageCounter.text = if (images.isEmpty()) "" else getString(R.string.image_counter_format, currentIndex + 1, images.size)
+        val counter = if (images.isEmpty()) "" else getString(R.string.image_counter_format, currentIndex + 1, images.size)
+        binding.imageCounter.text = counter
+        binding.pillCounter.text = counter
         if (mode == MODE_CONTINUOUS && images.isNotEmpty() && !scrubberDragging) {
             binding.pageScrubber.max = (images.size - 1).coerceAtLeast(0)
             binding.pageScrubber.progress = currentIndex.coerceIn(0, images.size - 1)
@@ -396,7 +395,7 @@ class ImageViewerActivity : BaseActivity() {
         overlayVisible = !overlayVisible
         binding.overlay.visibility = if (overlayVisible) View.VISIBLE else View.GONE
         if (mode == MODE_CONTINUOUS) {
-            binding.pageScrubber.visibility = if (overlayVisible && images.isNotEmpty()) View.VISIBLE else View.GONE
+            binding.scrubberBar.visibility = if (overlayVisible && images.isNotEmpty()) View.VISIBLE else View.GONE
         }
         if (overlayVisible) insetsController.show(WindowInsetsCompat.Type.systemBars()) else hideSystemBars()
     }
@@ -576,7 +575,7 @@ class ImageViewerActivity : BaseActivity() {
             setOnCheckedChangeListener { _, checked ->
                 autoScrolling = checked
                 if (mode == MODE_CONTINUOUS) {
-                    syncFab()
+                    syncAutoScrollButton()
                     if (checked) startAutoScrollTick() else stopAutoScrollTick()
                 }
             }
@@ -610,12 +609,12 @@ class ImageViewerActivity : BaseActivity() {
 
     private fun toggleAutoScroll() {
         autoScrolling = !autoScrolling
-        syncFab()
+        syncAutoScrollButton()
         if (autoScrolling) startAutoScrollTick() else stopAutoScrollTick()
     }
 
-    private fun syncFab() {
-        binding.autoScrollFab.setImageResource(if (autoScrolling) R.drawable.ic_auto_pause else R.drawable.ic_auto_scroll)
+    private fun syncAutoScrollButton() {
+        binding.autoScrollButton.setImageResource(if (autoScrolling) R.drawable.ic_auto_pause else R.drawable.ic_auto_scroll)
     }
 
     private fun startAutoScrollTick() {
@@ -636,7 +635,7 @@ class ImageViewerActivity : BaseActivity() {
                 rv.scrollBy(0, px)
                 if (!rv.canScrollVertically(1)) {
                     autoScrolling = false
-                    syncFab()
+                    syncAutoScrollButton()
                     Toast.makeText(this@ImageViewerActivity, R.string.auto_scroll_end, Toast.LENGTH_SHORT).show()
                     return
                 }

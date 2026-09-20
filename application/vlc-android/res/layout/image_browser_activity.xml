@@ -27,7 +27,7 @@
                         android:layout_height="match_parent"
                         android:paddingBottom="54dp"
                         android:clipToPadding="false"
-                        android:scrollbars="vertical" />
+                        android:scrollbars="none" />
 
                 <TextView
                         android:id="@+id/empty"
