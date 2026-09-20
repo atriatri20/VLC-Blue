@@ -36,6 +36,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.videolan.vlc.R
+import org.videolan.vlc.gui.helpers.applyCardGlow
 import org.videolan.vlc.gui.view.FastScroller
 
 /**
@@ -124,7 +125,9 @@ class ImageAlbumAdapter(
     override fun hasSections() = false
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): AlbumViewHolder {
-        return AlbumViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.item_image_album, parent, false))
+        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_image_album, parent, false)
+        view.findViewById<View>(R.id.album_card).applyCardGlow()
+        return AlbumViewHolder(view)
     }
 
     override fun onBindViewHolder(holder: AlbumViewHolder, position: Int) {

@@ -136,13 +136,15 @@ open class BaseBrowserAdapter(val browserContainer: BrowserContainer<MediaLibrar
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder<ViewDataBinding> {
         val inflater = LayoutInflater.from(parent.context)
         @Suppress("UNCHECKED_CAST")
-        return if (viewType == TYPE_MEDIA || viewType == TYPE_STORAGE)
-            MediaViewHolder(when {
-                !browserContainer.inCards -> BrowserItemBindingContainer(BrowserItemBinding.inflate(inflater, parent, false))
-                isLargeCards() -> BrowserItemBindingContainer(CardBrowserItemLargeBinding.inflate(inflater, parent, false))
-                else -> BrowserItemBindingContainer(CardBrowserItemBinding.inflate(inflater, parent, false))
-            })
-        else
+        return if (viewType == TYPE_MEDIA || viewType == TYPE_STORAGE) {
+            val binding: ViewDataBinding = when {
+                !browserContainer.inCards -> BrowserItemBinding.inflate(inflater, parent, false)
+                isLargeCards() -> CardBrowserItemLargeBinding.inflate(inflater, parent, false)
+                else -> CardBrowserItemBinding.inflate(inflater, parent, false)
+            }
+            if (browserContainer.inCards) binding.root.findViewById<View>(R.id.browser_container).applyCardGlow()
+            MediaViewHolder(BrowserItemBindingContainer(binding))
+        } else
             SeparatorViewHolder(BrowserItemSeparatorBinding.inflate(inflater, parent, false)) as ViewHolder<ViewDataBinding>
     }
 

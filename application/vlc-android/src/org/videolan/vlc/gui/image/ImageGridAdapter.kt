@@ -37,6 +37,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.videolan.vlc.R
+import org.videolan.vlc.gui.helpers.applyCardGlow
 import org.videolan.vlc.gui.view.FastScroller
 import org.videolan.resources.util.HeaderProvider
 import org.videolan.resources.util.HeadersIndex
@@ -197,7 +198,9 @@ class ImageGridAdapter(
         return if (viewType == TYPE_HEADER) {
             HeaderViewHolder(inflater.inflate(R.layout.item_image_section_header, parent, false))
         } else {
-            CardViewHolder(inflater.inflate(R.layout.item_image_grid, parent, false))
+            val view = inflater.inflate(R.layout.item_image_grid, parent, false)
+            view.findViewById<View>(R.id.image_card).applyCardGlow()
+            CardViewHolder(view)
         }
     }
 

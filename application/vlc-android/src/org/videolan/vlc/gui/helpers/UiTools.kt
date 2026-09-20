@@ -30,6 +30,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.DialogInterface
 import android.content.Intent
+import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.RenderEffect
 import android.graphics.Shader
@@ -69,6 +70,7 @@ import androidx.core.content.edit
 import androidx.core.content.getSystemService
 import androidx.core.content.pm.ShortcutInfoCompat
 import androidx.core.content.pm.ShortcutManagerCompat
+import androidx.core.graphics.ColorUtils
 import androidx.core.graphics.drawable.IconCompat
 import androidx.core.graphics.drawable.toDrawable
 import androidx.core.net.toUri
@@ -1192,4 +1194,17 @@ suspend fun fillActionMode(context: Context, mode: ActionMode, multiSelectHelper
         mode.title = context.getString(R.string.selection_count, realCount)
         mode.subtitle = Tools.millisToString(length)
     }
+}
+
+/**
+ * The platform elevation shadow is translucent black, which is invisible on the dark
+ * background, so the floating cover cards glow in the theme blue instead. The light
+ * theme is left alone and keeps its normal shadow.
+ */
+fun View.applyCardGlow() {
+    if (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
+            != Configuration.UI_MODE_NIGHT_YES) return
+    val blue = ContextCompat.getColor(context, R.color.orange500)
+    outlineSpotShadowColor = ColorUtils.setAlphaComponent(blue, 0xFF)
+    outlineAmbientShadowColor = ColorUtils.setAlphaComponent(blue, 0x99)
 }
