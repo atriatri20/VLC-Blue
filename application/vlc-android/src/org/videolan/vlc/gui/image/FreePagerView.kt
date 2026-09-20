@@ -34,12 +34,14 @@ import kotlin.math.abs
 /**
  * Free paging: one image sequence read through both axes. Up or left moves to the
  * next image, down or right back to the previous one, so a swipe never has to
- * commit to a direction first and a diagonal drag lands wherever the finger ends up.
+ * commit to a direction first.
  *
- * The whole transition is driven by a single signed offset along the axis being
- * dragged: the leaving page follows the finger 1:1 while it shrinks a little, fades
- * and softens out of focus; the incoming one rides in from the edge that just
- * opened, slightly over-scaled and blurred, and settles back to 1.0 and sharp.
+ * The axis is picked once, when the drag starts, and the rest of the gesture is
+ * locked to it: pulling up moves the pages up only, so a sloppy diagonal drag never
+ * drags black background in from the sides. The whole transition is a single signed
+ * offset along that axis: the leaving page follows the finger 1:1 while it shrinks a
+ * little and fades, the incoming one rides in from the edge that just opened and
+ * settles to full size and opacity.
  *
  * Pages zoomed with [ZoomableImageView] keep their own pan gestures: a drag is only
  * claimed when it starts on an unzoomed page, and a second finger hands the gesture
@@ -53,9 +55,6 @@ class FreePagerView @JvmOverloads constructor(context: Context, attrs: Attribute
         private const val LEAVING_SCALE = 0.93f
         private const val ENTRY_ALPHA = 0.6f
         private const val LEAVING_ALPHA = 0.35f
-        /** Depth of field: the incoming page resolves from this, the one in hand softens to it. */
-        private const val ENTRY_BLUR = 5f
-        private const val LEAVING_BLUR = 5f
         /** Fraction of the short edge a slow drag has to cover to turn the page. */
         private const val COMMIT_PROGRESS = 0.3f
         /** A drag towards a missing neighbour only stretches this much of itself. */
@@ -81,7 +80,6 @@ class FreePagerView @JvmOverloads constructor(context: Context, attrs: Attribute
     private var axisVertical = true
     private var forward = false
     private var main = 0f
-    private var perp = 0f
     private var dragging = false
     private var multiPointer = false
 
@@ -115,7 +113,7 @@ class FreePagerView @JvmOverloads constructor(context: Context, attrs: Attribute
         for (i in 0 until childCount) (getChildAt(i) as? ImagePage)?.let { pool.release(it) }
         if (count > 0) current = pool.acquire(index)
         warm()
-        applyTransition(0f, 0f)
+        applyTransition(0f)
     }
 
     /** Keeps the neighbours of the current page attached and decoded, parked aside. */
@@ -143,7 +141,7 @@ class FreePagerView @JvmOverloads constructor(context: Context, attrs: Attribute
 
     override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
         for (i in 0 until childCount) getChildAt(i).layout(0, 0, r - l, b - t)
-        applyTransition(main, perp)
+        applyTransition(main)
     }
 
     private fun axisSpan() = (if (axisVertical) height else width).toFloat()
@@ -157,13 +155,12 @@ class FreePagerView @JvmOverloads constructor(context: Context, attrs: Attribute
     private fun currentZoomed() = current?.image?.isZoomed() == true
 
     /**
-     * Places every live page for a transition of [main] along the paging axis and
-     * [perp] across it. Both pages share the cross-axis offset, which is what makes
-     * a diagonal drag feel like sliding a sheet instead of being locked to one axis.
+     * Places every live page for a transition of [main] along the paging axis.
+     * Nothing moves across that axis: the axis is chosen when the drag starts, and
+     * the gesture stays on it.
      */
-    private fun applyTransition(main: Float, perp: Float) {
+    private fun applyTransition(main: Float) {
         this.main = main
-        this.perp = perp
         val span = axisSpan()
         if (span <= 0f) return
         val progress = (abs(main) / travel()).coerceIn(0f, 1f)
@@ -171,32 +168,29 @@ class FreePagerView @JvmOverloads constructor(context: Context, attrs: Attribute
         for (i in 0 until childCount) {
             val page = getChildAt(i) as? ImagePage ?: continue
             when {
-                page === current -> page.place(main, perp, VISIBLE,
+                page === current -> page.place(main, VISIBLE,
                         1f - (1f - LEAVING_SCALE) * progress,
-                        1f - LEAVING_ALPHA * progress,
-                        LEAVING_BLUR * progress)
+                        1f - LEAVING_ALPHA * progress)
 
-                page === entering -> page.place(main + entry, perp, VISIBLE,
+                page === entering -> page.place(main + entry, VISIBLE,
                         ENTRY_SCALE - (ENTRY_SCALE - 1f) * progress,
-                        ENTRY_ALPHA + (1f - ENTRY_ALPHA) * progress,
-                        ENTRY_BLUR * (1f - progress))
+                        ENTRY_ALPHA + (1f - ENTRY_ALPHA) * progress)
 
                 page.position >= 0 -> page.place(if (page.position > position) span else -span,
-                        0f, INVISIBLE, ENTRY_SCALE, ENTRY_ALPHA, ENTRY_BLUR)
+                        INVISIBLE, 1f, 1f)
             }
         }
     }
 
-    private fun ImagePage.place(along: Float, across: Float, visibility: Int, scale: Float, alpha: Float, blur: Float) {
+    private fun ImagePage.place(along: Float, visibility: Int, scale: Float, alpha: Float) {
         if (this.visibility != visibility) this.visibility = visibility
-        translationX = if (axisVertical) across else along
-        translationY = if (axisVertical) along else across
+        translationX = if (axisVertical) 0f else along
+        translationY = if (axisVertical) along else 0f
         scaleX = scale
         scaleY = scale
         this.alpha = alpha
         cardRadius = 0f
         cardFace = 0f
-        blurTo(blur)
     }
 
     // region gestures
@@ -275,12 +269,8 @@ class FreePagerView @JvmOverloads constructor(context: Context, attrs: Attribute
     private fun updateDrag() {
         val span = axisSpan()
         var along = if (axisVertical) drag.dy() else drag.dx()
-        var across = if (axisVertical) drag.dx() else drag.dy()
-        if (entering == null) {
-            along *= RESIST
-            across *= RESIST
-        } else along = along.coerceIn(-span, span)
-        applyTransition(along, across)
+        if (entering == null) along *= RESIST else along = along.coerceIn(-span, span)
+        applyTransition(along)
     }
 
     private fun commit() {
@@ -306,19 +296,18 @@ class FreePagerView @JvmOverloads constructor(context: Context, attrs: Attribute
         finishAnimator()
         dragging = false
         val from = main
-        val fromAcross = perp
         val fraction = abs(target - from) / axisSpan().coerceAtLeast(1f)
         animator = ValueAnimator.ofFloat(0f, 1f).apply {
             duration = if (turn == null) (180L + 120L * fraction).toLong() else (170L + 170L * fraction).toLong()
             interpolator = if (turn == null) PathInterpolator(0.3f, 0f, 0.3f, 1f) else PathInterpolator(0.2f, 0f, 0.1f, 1f)
             addUpdateListener {
                 val value = it.animatedValue as Float
-                applyTransition(from + (target - from) * value, fromAcross * (1f - value))
+                applyTransition(from + (target - from) * value)
             }
             addListener(object : AnimatorListenerAdapter() {
                 override fun onAnimationEnd(animation: Animator) {
                     animator = null
-                    if (turn == null) applyTransition(0f, 0f) else landOn(turn)
+                    if (turn == null) applyTransition(0f) else landOn(turn)
                 }
             })
             start()
@@ -330,7 +319,7 @@ class FreePagerView @JvmOverloads constructor(context: Context, attrs: Attribute
         current = entering
         entering = null
         warm()
-        applyTransition(0f, 0f)
+        applyTransition(0f)
         onPositionChanged?.invoke(position)
     }
 

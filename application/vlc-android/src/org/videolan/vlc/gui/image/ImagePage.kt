@@ -25,9 +25,6 @@ import android.content.Context
 import android.graphics.Color
 import android.graphics.Outline
 import android.graphics.RectF
-import android.graphics.RenderEffect
-import android.graphics.Shader
-import android.os.Build
 import android.view.MotionEvent
 import android.view.VelocityTracker
 import android.view.View
@@ -48,9 +45,6 @@ class ImagePage(context: Context) : FrameLayout(context) {
 
     val image = ZoomableImageView(context)
     var position = -1
-
-    /** Last blur actually installed, so a drag does not rebuild the effect per frame. */
-    private var blurApplied = -1f
 
     /**
      * 0 keeps the page edge to edge; a positive value makes it a rounded card. Stepped to
@@ -149,25 +143,6 @@ class ImagePage(context: Context) : FrameLayout(context) {
         clipReleased = false
         image.setZoomableBitmap(null)
     }
-
-    /**
-     * Depth of field: 0 keeps the page sharp. Quantised to whole pixels because
-     * installing a render effect rebuilds the layer, which is far too expensive to
-     * do on every frame of a drag. Blur itself needs API 31; on older releases the
-     * modes keep their slide/scale/fade and simply never blur.
-     */
-    fun blurTo(radius: Float) {
-        val step = if (radius < 0.8f) 0f else radius.toInt().toFloat()
-        if (step == blurApplied) return
-        blurApplied = step
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) applyBlur(step)
-    }
-
-    @androidx.annotation.RequiresApi(Build.VERSION_CODES.S)
-    private fun applyBlur(radius: Float) {
-        setRenderEffect(if (radius == 0f) null
-        else RenderEffect.createBlurEffect(radius, radius, Shader.TileMode.CLAMP))
-    }
 }
 
 /**
@@ -211,7 +186,6 @@ internal class PagePool(
     fun release(page: ImagePage) {
         page.visibility = View.GONE
         page.detachContent()
-        page.blurTo(0f)
         if (free.size < MAX_FREE_PAGES) free.add(page)
     }
 

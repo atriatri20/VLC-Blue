@@ -187,9 +187,6 @@ class CardStackPager @JvmOverloads constructor(context: Context, attrs: Attribut
         val turning = dragging || animator != null
         val shown = if (turning) VISIBLE else INVISIBLE
         val grown = SIDE_SCALE + (1f - SIDE_SCALE) * progress
-        // no depth-of-field blur here on purpose: a blurred layer that is also scaled and
-        // faded every frame leaves a smear on some GPUs, and the reveal reads as depth
-        // already from the scale and the fade
         center?.placeCard(offset, 1f, 1f, 0f, VISIBLE)
         incoming?.placeCard(0f, grown, progress, 1f - progress, shown)
         for (i in 0 until childCount) {
@@ -218,7 +215,6 @@ class CardStackPager @JvmOverloads constructor(context: Context, attrs: Attribut
         // clipped to the photo itself even when square, so a card sliding aside is the
         // photo moving and not a full screen black panel wiping the one underneath
         setClipTo(image.photoRect(), cardEdge * round)
-        blurTo(0f)
     }
 
     // endregion
