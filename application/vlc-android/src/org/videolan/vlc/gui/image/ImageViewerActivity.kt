@@ -24,6 +24,8 @@ package org.videolan.vlc.gui.image
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.net.Uri
 import android.os.Bundle
 import android.text.InputType
@@ -166,6 +168,13 @@ class ImageViewerActivity : BaseActivity() {
     private lateinit var insetsController: WindowInsetsControllerCompat
 
     override fun getSnackAnchorView(overAudioPlayer: Boolean): View? = binding.root
+
+    /**
+     * The viewer drives its own fullscreen flags. BaseActivity's edge-to-edge helper pads
+     * android.R.id.content by the status bar inset, which leaks the window background
+     * (white under the light app theme) as a bar above the image.
+     */
+    override var isEdgeToEdge = false
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
         if (level >= android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW) {
@@ -177,6 +186,9 @@ class ImageViewerActivity : BaseActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // applyTheme() paints the window background with the app theme colour; a black
+        // one keeps every pixel the viewer can expose (cutout, overscan, first frame) black
+        window.setBackgroundDrawable(ColorDrawable(Color.BLACK))
         binding = DataBindingUtil.setContentView(this, R.layout.image_viewer_activity)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         insetsController = WindowInsetsControllerCompat(window, binding.root)
@@ -418,6 +430,12 @@ class ImageViewerActivity : BaseActivity() {
 
     private fun hideSystemBars() {
         insetsController.hide(WindowInsetsCompat.Type.systemBars())
+    }
+
+    /** MIUI/HyperOS restores the status bar after a dialog or a notification; re-assert on refocus. */
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus && !overlayVisible) hideSystemBars()
     }
 
     /**
