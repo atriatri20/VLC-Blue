@@ -9,6 +9,11 @@
             app:actionViewClass="androidx.appcompat.widget.SearchView"
             app:showAsAction="ifRoom|collapseActionView" />
     <item
+            android:id="@+id/image_menu_show_hidden"
+            android:checkable="true"
+            android:title="@string/image_show_hidden_albums"
+            app:showAsAction="never" />
+    <item
             android:id="@+id/image_menu_sort"
             android:icon="@drawable/ic_sort"
             android:title="@string/sortby"

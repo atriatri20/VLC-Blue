@@ -31,6 +31,31 @@
                     app:layout_constraintEnd_toEndOf="parent"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toTopOf="parent" />
+
+            <!-- Multi-selection state: dark scrim over the cover + check mark -->
+            <View
+                    android:id="@+id/selection_scrim"
+                    android:layout_width="0dp"
+                    android:layout_height="0dp"
+                    android:background="#40000000"
+                    android:visibility="gone"
+                    app:layout_constraintBottom_toBottomOf="@+id/album_cover"
+                    app:layout_constraintEnd_toEndOf="@+id/album_cover"
+                    app:layout_constraintStart_toStartOf="@+id/album_cover"
+                    app:layout_constraintTop_toTopOf="@+id/album_cover" />
+
+            <ImageView
+                    android:id="@+id/selection_check"
+                    android:layout_width="26dp"
+                    android:layout_height="26dp"
+                    android:layout_margin="8dp"
+                    android:background="@drawable/image_check_circle"
+                    android:padding="5dp"
+                    android:src="@drawable/ic_check"
+                    app:tint="@color/white"
+                    android:visibility="gone"
+                    app:layout_constraintEnd_toEndOf="@+id/album_cover"
+                    app:layout_constraintTop_toTopOf="@+id/album_cover" />
         </androidx.constraintlayout.widget.ConstraintLayout>
 
     </com.google.android.material.card.MaterialCardView>

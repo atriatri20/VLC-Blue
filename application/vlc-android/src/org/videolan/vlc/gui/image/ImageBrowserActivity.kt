@@ -24,6 +24,7 @@ package org.videolan.vlc.gui.image
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.ColorStateList
 import android.graphics.Bitmap
 import android.graphics.Rect
 import android.os.Build
@@ -31,6 +32,7 @@ import android.os.Bundle
 import android.provider.MediaStore
 import android.text.format.Formatter
 import android.util.DisplayMetrics
+import android.util.TypedValue
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
@@ -79,6 +81,7 @@ class ImageBrowserActivity : BaseActivity(), ImageGridAdapter.Listener {
 
     companion object {
         private const val PREF_SORT = "image_sort"
+        private const val PREF_SHOW_HIDDEN = "image_show_hidden_albums"
         private const val REQUEST_DELETE = 4001
 
         /** Set by the album page after deletions so this home reloads on resume */
@@ -100,9 +103,12 @@ class ImageBrowserActivity : BaseActivity(), ImageGridAdapter.Listener {
     private var columns = 0
     private var gridDecoration: ItemDecoration? = null
     private var actionMode: ActionMode? = null
+    private var albumActionMode: ActionMode? = null
     private var pendingDelete: List<ImageInfo> = emptyList()
     private val headerProvider = ImageHeaderProvider()
     private var query: String? = null
+    private var hiddenAlbums = HashSet<Long>()
+    private var showHiddenAlbums = false
 
     private val deleteLauncher = registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
         if (result.resultCode == RESULT_OK) onImagesDeleted(pendingDelete)
@@ -120,6 +126,7 @@ class ImageBrowserActivity : BaseActivity(), ImageGridAdapter.Listener {
         supportActionBar?.setTitle(R.string.image_browser)
 
         sort = ImageSort.fromValue(Settings.getInstance(this).getInt(PREF_SORT, ImageSort.DATE_DESC.value))
+        showHiddenAlbums = Settings.getInstance(this).getBoolean(PREF_SHOW_HIDDEN, false)
 
         photoAdapter = ImageGridAdapter(this, ::getThumbnail, this)
         albumAdapter = ImageAlbumAdapter(this, ::getThumbnail, object : ImageAlbumAdapter.Listener {
@@ -127,6 +134,15 @@ class ImageBrowserActivity : BaseActivity(), ImageGridAdapter.Listener {
                 startActivity(Intent(this@ImageBrowserActivity, ImageAlbumActivity::class.java)
                         .putExtra(ImageAlbumActivity.EXTRA_BUCKET_ID, album.bucketId)
                         .putExtra(ImageAlbumActivity.EXTRA_TITLE, album.name))
+            }
+
+            override fun onSelectionChanged(count: Int) {
+                albumActionMode?.title = getString(R.string.selection_count, count)
+                albumActionMode?.invalidate()
+                when {
+                    count == 0 -> albumActionMode?.finish()
+                    albumActionMode == null -> startSupportActionMode(albumSelectionCallback)
+                }
             }
         })
 
@@ -154,20 +170,24 @@ class ImageBrowserActivity : BaseActivity(), ImageGridAdapter.Listener {
         if (position == currentTab && binding.grid.adapter != null) return
         currentTab = position
         actionMode?.finish()
+        albumActionMode?.finish()
         applyGridDisplay(resources.displayMetrics)
-        when (position) {
-            0 -> {
-                binding.grid.adapter = photoAdapter
-                binding.empty.setText(R.string.image_browser_empty)
-            }
-            else -> {
-                binding.grid.adapter = albumAdapter
-                binding.empty.setText(R.string.image_albums_empty)
-            }
-        }
-        binding.empty.visibility = if (currentList().isEmpty() && !loading) View.VISIBLE else View.GONE
+        binding.grid.adapter = if (position == 0) photoAdapter else albumAdapter
+        updateEmptyText()
         refreshFastScroller()
         binding.grid.scrollToPosition(0)
+        invalidateOptionsMenu()
+    }
+
+    /** The album tab distinguishes "no album at all" from "everything is hidden" */
+    private fun updateEmptyText() {
+        if (currentTab == 0) {
+            binding.empty.setText(R.string.image_browser_empty)
+        } else {
+            binding.empty.setText(if (albums.isEmpty() && hiddenAlbums.isNotEmpty() && !showHiddenAlbums)
+                R.string.image_albums_empty_hidden else R.string.image_albums_empty)
+        }
+        binding.empty.visibility = if (currentList().isEmpty() && !loading) View.VISIBLE else View.GONE
     }
 
     private fun currentList(): List<*> = if (currentTab == 0) photos else albums
@@ -185,6 +205,14 @@ class ImageBrowserActivity : BaseActivity(), ImageGridAdapter.Listener {
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         when (item.itemId) {
             android.R.id.home -> finish()
+            R.id.image_menu_show_hidden -> {
+                showHiddenAlbums = !showHiddenAlbums
+                Settings.getInstance(this).edit().putBoolean(PREF_SHOW_HIDDEN, showHiddenAlbums).apply()
+                albumActionMode?.finish()
+                rebuild()
+                invalidateOptionsMenu()
+                return true
+            }
             R.id.image_sort_date_desc, R.id.image_sort_date_asc, R.id.image_sort_name_asc, R.id.image_sort_name_desc -> {
                 sort = when (item.itemId) {
                     R.id.image_sort_date_asc -> ImageSort.DATE_ASC
@@ -252,7 +280,13 @@ class ImageBrowserActivity : BaseActivity(), ImageGridAdapter.Listener {
 
     override fun onPrepareOptionsMenu(menu: Menu?): Boolean {
         currentMenu = menu
-        if (menu != null) updateSortMenu(menu)
+        if (menu != null) {
+            updateSortMenu(menu)
+            menu.findItem(R.id.image_menu_show_hidden)?.apply {
+                isVisible = currentTab == 1
+                isChecked = showHiddenAlbums
+            }
+        }
         return super.onPrepareOptionsMenu(menu)
     }
 
@@ -323,7 +357,9 @@ class ImageBrowserActivity : BaseActivity(), ImageGridAdapter.Listener {
         val filteredPhotos = if (q == null) allImages else allImages.filter { it.name.contains(q, true) }
         photos = ArrayList(ImageRepository.sortImages(filteredPhotos, sort))
         val albumGroups = ImageRepository.groupAlbums(allImages)
-        albums = ArrayList(if (q == null) albumGroups else albumGroups.filter { it.name.contains(q, true) })
+        hiddenAlbums = HashSet(ImageRepository.hiddenAlbumIds(this))
+        val keptAlbums = if (showHiddenAlbums) albumGroups else albumGroups.filter { it.bucketId !in hiddenAlbums }
+        albums = ArrayList(if (q == null) keptAlbums else keptAlbums.filter { it.name.contains(q, true) })
         // the sort menu applies to the album list as well (date orders keep newest-first)
         when (sort) {
             ImageSort.NAME_ASC -> albums.sortBy { it.name.lowercase(Locale.ENGLISH) }
@@ -331,8 +367,9 @@ class ImageBrowserActivity : BaseActivity(), ImageGridAdapter.Listener {
             else -> {}
         }
         photoAdapter.setRows(ImageSections.buildRows(photos, sort.isDateBased, this), sort.isDateBased)
+        albumAdapter.setHiddenIds(hiddenAlbums)
         albumAdapter.setAlbums(albums)
-        binding.empty.visibility = if (currentList().isEmpty() && !loading) View.VISIBLE else View.GONE
+        updateEmptyText()
         if (currentTab == 0) refreshFastScroller()
     }
 
@@ -438,6 +475,63 @@ class ImageBrowserActivity : BaseActivity(), ImageGridAdapter.Listener {
             actionMode = null
             photoAdapter.clearSelection()
         }
+    }
+
+    /** Long-press multi selection of the 相册 tab: hides albums, or restores them */
+    private val albumSelectionCallback = object : ActionMode.Callback {
+        override fun onCreateActionMode(mode: ActionMode, menu: Menu): Boolean {
+            albumActionMode = mode
+            mode.menuInflater.inflate(R.menu.image_album_selection_menu, menu)
+            return true
+        }
+
+        override fun onPrepareActionMode(mode: ActionMode, menu: Menu): Boolean {
+            val restore = albumAdapter.selectionAllHidden()
+            menu.findItem(R.id.image_album_action_hide)?.apply {
+                setTitle(if (restore) R.string.image_album_unhide else R.string.image_album_hide)
+                setIcon(if (restore) R.drawable.ic_visible else R.drawable.ic_invisible)
+                // those two eye vectors carry a hard coded light fill; tint them like
+                // the photo actions, which resolve the colour inside the drawable
+                icon?.mutate()?.setTintList(actionIconTint())
+            }
+            mode.title = getString(R.string.selection_count, albumAdapter.selectionCount())
+            return true
+        }
+
+        override fun onActionItemClicked(mode: ActionMode, item: MenuItem): Boolean {
+            val selection = albumAdapter.selectedAlbums()
+            when (item.itemId) {
+                R.id.image_album_select_all -> albumAdapter.selectAll(albums)
+                R.id.image_album_action_hide -> if (selection.isNotEmpty())
+                    hideAlbums(selection, !albumAdapter.selectionAllHidden())
+            }
+            return true
+        }
+
+        override fun onDestroyActionMode(mode: ActionMode) {
+            albumActionMode = null
+            albumAdapter.clearSelection()
+        }
+    }
+
+    /** Same colour the toolbar action icons resolve from the theme (see ic_share) */
+    private fun actionIconTint(): ColorStateList? {
+        val value = TypedValue()
+        if (!theme.resolveAttribute(R.attr.colorControlNormal, value, true)) return null
+        return if (value.resourceId != 0) ContextCompat.getColorStateList(this, value.resourceId)
+        else ColorStateList.valueOf(value.data)
+    }
+
+    private fun hideAlbums(selection: List<ImageAlbum>, hide: Boolean) {
+        val changed = ImageRepository.setAlbumsHidden(this, selection.map { it.bucketId }, hide)
+        albumActionMode?.finish()
+        // unhiding is only reachable with "show hidden albums" on, so the restored
+        // albums stay in the list either way
+        rebuild()
+        invalidateOptionsMenu()
+        Toast.makeText(this, getString(
+                if (hide) R.string.image_album_hidden_count else R.string.image_album_unhidden_count, changed),
+                Toast.LENGTH_SHORT).show()
     }
 
     private fun shareImages(images: List<ImageInfo>) {

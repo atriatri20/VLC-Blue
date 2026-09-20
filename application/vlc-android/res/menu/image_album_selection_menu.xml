@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+  ~ Action mode of the 相册 tab multi selection. The hide entry flips to
+  ~ 取消隐藏 when every selected album is already hidden.
+  -->
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+            android:id="@+id/image_album_select_all"
+            android:title="@string/image_select_all"
+            app:showAsAction="never" />
+    <item
+            android:id="@+id/image_album_action_hide"
+            android:icon="@drawable/ic_invisible"
+            android:title="@string/image_album_hide"
+            app:showAsAction="always" />
+</menu>

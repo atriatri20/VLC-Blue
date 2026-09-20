@@ -31,6 +31,7 @@ import android.os.Parcel
 import android.os.Parcelable
 import android.provider.MediaStore
 import kotlinx.parcelize.Parcelize
+import org.videolan.tools.Settings
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.util.Locale
@@ -88,6 +89,8 @@ object ImageRepository {
 
     /** Remote payloads above this size are not downloaded for decoding */
     private const val MAX_BYTES = 20L * 1024L * 1024L
+
+    private const val PREF_HIDDEN_ALBUMS = "hidden_albums"
 
     fun isImageFile(name: String?): Boolean {
         if (name == null) return false
@@ -162,6 +165,19 @@ object ImageRepository {
         return buckets.map { (id, list) ->
             ImageAlbum(id, list[0].bucket ?: list[0].name, list[0], list)
         }
+    }
+
+    /** Album ids the user hid from the 相册 tab, persisted as a comma separated list */
+    fun hiddenAlbumIds(context: Context): Set<Long> =
+            Settings.getInstance(context).getString(PREF_HIDDEN_ALBUMS, "")!!
+                    .split(',').mapNotNullTo(HashSet()) { it.trim().toLongOrNull() }
+
+    /** Hides or restores [ids]; returns how many albums actually changed state */
+    fun setAlbumsHidden(context: Context, ids: Collection<Long>, hidden: Boolean): Int {
+        val current = hiddenAlbumIds(context)
+        val next = if (hidden) current + ids else current - ids
+        Settings.getInstance(context).edit().putString(PREF_HIDDEN_ALBUMS, next.joinToString(",")).apply()
+        return if (hidden) next.size - current.size else current.size - next.size
     }
 
     /** Sorts the images with the requested order, returning a new list */
