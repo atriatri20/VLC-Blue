@@ -307,7 +307,7 @@
     <string name="app_name_full">VLC for Android</string>
     <string name="revision">修订版本</string>
     <string name="about">关于</string>
-    <string name="about_vlc_text">VLC for Android™ 是广受欢迎的开源媒体播放器 ｢VLC media player｣ 的移植版本。Android™ 版本可以读取几乎所有文件以及网络流。</string>
+    <string name="about_vlc_text">VLC Blue 是基于 VLC for Android 开发的非官方分支版本，在原版基础上增加图片浏览能力，采用全新的视觉设计语言，并对 SMB 媒体浏览进行深度改造，为图片与视频提供更加个性化的浏览体验。</string>
     <string name="authors">作者</string>
     <string name="vlc_authors">及 VLC 全体作者。</string>
     <string name="is_compiled_by">编译软件</string>

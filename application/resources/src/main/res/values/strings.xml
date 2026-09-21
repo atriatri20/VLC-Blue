@@ -323,11 +323,12 @@
 
     <!-- About -->
     <string name="app_name_full">VLC for Android</string>
+    <string name="about_app_name" translatable="false">VLC Blue</string>
     <string name="revision">Revision</string>
     <string name="about">About</string>
-    <string name="about_vlc_text">VLC for Android™ is a port of VLC media player, the popular open source media player. The Android™ version can read all files and network streams.</string>
+    <string name="about_vlc_text">VLC Blue is an unofficial fork of VLC for Android. Building on the original, it adds image-browsing capability, adopts an entirely new visual design language, and deeply reworks SMB media browsing to deliver a more personalized experience for photos and videos.</string>
     <string name="authors">Authors</string>
-    <string name="about_copyright" translatable="false">Copyleft &#169; 1996&#8211;2026 by VideoLAN</string>
+    <string name="about_copyright" translatable="false">Copyleft &#169; 1996&#8211;2026 by VideoLAN\nCopyleft &#169; 2026 子影zy</string>
     <string name="about_license" translatable="false">GNU General Public License v2.0</string>
     <string name="about_license_text" translatable="false"></string>
     <string name="vlc_authors">and VLC Authors.</string>
