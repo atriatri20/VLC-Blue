@@ -1,3 +1,15 @@
+# VLC Blue
+
+> **This is a third-party mod of VLC for Android, not the official VLC.**
+> VLC Blue is based on [vlc-android 3.7.2](https://code.videolan.org/videolan/vlc-android)
+> and focuses on image browsing: an `imageMod` build flavor (application id
+> `org.videolan.vlc.blue`) with an enhanced local/network (SMB/FTP) picture-browsing
+> experience and TV grid browsing. Licensed under GPL-2.0-or-later, same as upstream.
+> Release signing configuration is intentionally kept out of this repository
+> (see the comment in `gradle.properties`).
+
+---
+
 # VLC for Android
 
 This is the official **Android** port of [VLC](https://videolan.org/vlc/).
