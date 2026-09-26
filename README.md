@@ -1,162 +1,74 @@
 # VLC Blue
 
-> **This is a third-party mod of VLC for Android, not the official VLC.**
-> VLC Blue is based on [vlc-android 3.7.2](https://code.videolan.org/videolan/vlc-android)
-> and focuses on image browsing: an `imageMod` build flavor (application id
-> `org.videolan.vlc.blue`) with an enhanced local/network (SMB/FTP) picture-browsing
-> experience and TV grid browsing. Licensed under GPL-2.0-or-later, same as upstream.
-> Release signing configuration is intentionally kept out of this repository
-> (see the comment in `gradle.properties`).
+**VLC Blue** 是基于 [VLC for Android 3.7.2](https://code.videolan.org/videolan/vlc-android) 的第三方**图片浏览增强 mod**——不是官方 VLC 客户端。它把 VLC 的媒体引擎改造成以图片为中心的浏览体验:大卡片缩略图网格、三种阅读模式、SMB 网络相册、Android TV 支持,全套主题蓝配色。
+
+- 应用名 **VLC Blue**(imageMod flavor),包名 `org.videolan.vlc.blue`,**可与官方 VLC 并存安装**
+- 许可证 **GPL-2.0-or-later**,与上游一致
+- 适用:手机 / 平板 / Android TV
 
 ---
 
-# VLC for Android
+## 特性
 
-This is the official **Android** port of [VLC](https://videolan.org/vlc/).
+### 大卡片缩略图网格
 
-VLC on Android plays all the same files as the classical version of VLC, and features a media database
-for Audio and Video files and stream.
+- 20dp 大圆角 + 悬浮阴影、无边框的 2:3 封面卡片,文件名分离在卡片下方居中展示
+- 列数自适应:手机竖屏 3 列,平板 / 宽屏自动加列
+- 磁盘 + 内存两级缩略图缓存,带负缓存与失败退避:上千张图的目录滚动依旧流畅,断网秒失败不卡线程
+- 溢出菜单提供「刷新缩略图」手动重建缓存
 
-- [Project Structure](#project-structure)
-- [LibVLC](#libvlc)
-- [License](#license)
-- [Build](#build)
-  - [Build Application](#build-application)
-  - [Build LibVLC](#build-libvlc)
-- [Contribute](#contribute)
-  - [Pull requests](#pull-requests)
-  - [Translations](#translations)
-- [Issues and feature requests](#issues-and-feature-requests)
-- [Support](#support)
+![大卡片缩略图网格](screenshots/browser-grid.jpg)
 
-## Project Structure
+### 三种阅读模式,随时切换
 
-Here are the current folders of vlc-android project:
+点击任意图片进入全屏阅读器,三种模式在工具栏随时切换:切换时保持当前图片,选择自动记忆。
 
-- extension-api : Application extensions SDK (not released yet)
-- application : Android application source code, organized by modules.
-- buildsystem : Build scripts, CI and maven publication configuration
-- libvlc : LibVLC gradle module, VLC source code will be cloned in `vlc/` at root level.
-- medialibrary : Medialibrary gradle module
+| 模式 | 体验 |
+|---|---|
+| **自由翻页** | 上下左右四向滑动切图,跟手拖动 + 微缩放 + 淡入景深动效,翻页流畅 |
+| **连续滚动** | webtoon 式长卷:整个文件夹的图片无缝拼成一条,一路滚到底;支持**自动平滑滚动**(悬浮按钮启停、触摸自动暂停、1–10 级调速、滚到底自动停止) |
+| **卡片堆叠** | 纵深式层叠卡片:下一张常驻顶牌下方,横向划走即翻页,动效轻快 |
 
-## LibVLC
+![阅读模式选择](screenshots/reader-modes.png)
 
-LibVLC is the Android library embedding VLC engine, which provides a lot of multimedia features, like:
+阅读器通用能力:双击缩放(1x ↔ 2.5x)、双指捏合(1x–5x,连续滚动下缩放整条长卷)、放大后拖动、单击显示 / 隐藏工具栏、分享当前图片。
 
-- Play every media file formats, every codec and every streaming protocols
-- Hardware and efficient decoding on every platform, up to 8K
-- Network browsing for distant filesystems (SMB, FTP, SFTP, NFS...) and servers (UPnP, DLNA)
-- Playback of Audio CD, DVD and Bluray with menu navigation
-- Support for HDR, including tonemapping for SDR streams
-- Audio passthrough with SPDIF and HDMI, including for Audio HD codecs, like DD+, TrueHD or DTS-HD
-- Support for video and audio filters
-- Support for 360 video and 3D audio playback, including Ambisonics
-- Ability to cast and stream to distant renderers, like Chromecast and UPnP renderers.
+![连续滚动阅读](screenshots/reader-scroll.jpg)
 
-And more.
+### 本地与网络相册
 
-![LibVLC stack](https://images.videolan.org/images/libvlc_stack.png)
+- **本地图片**:MediaStore 全量扫描,按时间倒序,「照片 / 相册」两视图
+- **SMB 局域网**:目录与封面缩略图全支持,视频封面带时长角标;主机级失败黑名单(5 分钟 TTL)+ 收紧的超时快速失败,切换网络自动恢复,不可达主机不再拖慢加载
+- **系统级打开**:注册了 `image/*` 的打开方式,在任何文件管理器里点图片都能选 VLC Blue
 
-You can use our LibVLC module to power your own Android media player.
-Download the `.aar` directly from [Maven](https://search.maven.org/artifact/org.videolan.android/libvlc-all) or build from source.
+### Android TV
 
-Have a look at our [sample codes](https://code.videolan.org/videolan/libvlc-android-samples).
+- TV 界面支持图片网格浏览:D-pad 导航、SMB 目录浏览与缩略图渲染,与手机端同一套缓存体系
 
-## License
+### 主题配色
 
-VLC for Android is licensed under [GPLv2 (or later)](COPYING). Android libraries make this, de facto, a GPLv3 application.
+- 全套 Material Blue(主色 `#128AFA`):图标、启动器图标、进度条、弹窗亮 / 暗双变体全部跟随,与官方橙色版一眼区分
 
-VLC engine *(LibVLC)* for Android is licensed under [LGPLv2](libvlc/COPYING.LIB).
+## 安装
 
-## Build
+从 [Releases](https://github.com/atriatri20/VLC-Blue/releases) 下载 APK 侧载安装,或:
 
-Native libraries are published on bintray. So you can:
-
-- Build the application and get libraries via gradle dependencies (JVM build only)
-- Build the whole app (LibVLC + Medialibrary + Application)
-- Build LibVLC only, and get an .aar package
-
-### Build Application
-
-VLC-Android build relies on gradle build modes :
-
-- `Release` & `Debug` will get LibVLC and Medialibrary from Bintray, and build application source code only.
-- `SignedRelease` also, but it will allow you to sign application apk with a local keystore.
-- `Dev` will build build LibVLC, Medialibrary, and then build the application with these binaries. (via build scripts only)
-
-### Build LibVLC
-
-You will need a recent Linux distribution to build VLC.
-It should work with Windows 10, and macOS, but there is no official support for this.
-
-#### Setup
-
-Check our [AndroidCompile wiki page](https://wiki.videolan.org/AndroidCompile/), especially for build dependencies.
-
-Here are the essential points:
-
-On Debian/Ubuntu, install the required dependencies:
 ```bash
-sudo apt install automake ant autopoint cmake build-essential libtool-bin \
-    patch pkg-config protobuf-compiler ragel subversion unzip git \
-    openjdk-8-jre openjdk-8-jdk flex python wget
+adb install -r VLC-Blue-x.y.z.apk
 ```
 
-Setup the build environment:
-Set `$ANDROID_SDK` to point to your Android SDK directory
-`export ANDROID_SDK=/path/to/android-sdk`
+## 从源码构建
 
-Set `$ANDROID_NDK` to point to your Android NDK directory
-`export ANDROID_NDK=/path/to/android-ndk`
+需要 JDK 17 与 Android SDK。应用构建前需先按[上游文档](https://code.videolan.org/videolan/vlc-android)编译或获取 LibVLC(`libvlc.aar`):
 
-Then, you are ready to build!
+```bash
+git clone https://github.com/atriatri20/VLC-Blue.git
+cd VLC-Blue
+./gradlew :application:app:assembleImageMod
+```
 
-#### Build
+发布签名配置不进仓库:在 `~/.gradle/gradle.properties` 中配置 `keyStoreFile` / `storealias` / `storepwd`(见本仓库 `gradle.properties` 内注释)。
 
-`buildsystem/compile.sh -l -a <ABI>`
+## 关于上游
 
-ABI can be `arm`, `arm64`, `x86`, `x86_64` or `all` for a multi-abis build
-
-You can do a library release build with `-r` argument
-
-#### Medialibrary
-
-Build Medialibrary with `-ml` instead of `-l`
-
-## Contribute
-
-VLC is a libre and open source project, we welcome all contributions.
-
-Just respect our [Code of Conduct](https://wiki.videolan.org/CoC/), and if you want do contribute to the UI or add a new feature, please open an issue first so there can be a discussion about it.
-
-
-### Pull requests
-
-Pull requests must be proposed on our [gitlab server](https://code.videolan.org/videolan/vlc-android/).
-
-So you must create an account, fork vlc-android project, and propose your merge requests from it.
-
-**Except for translations**, see the section below.
-
-### Translations
-
-You can help improving translations too by joining the [transifex vlc project](https://app.transifex.com/yaron/vlc-trans/dashboard/)
-
-Translations merge requests are then generated from transifex work.
-
-## Issues and feature requests
-
-VLC for Android bugtracker is hosted on [VideoLAN gitlab](https://code.videolan.org/videolan/vlc-android/issues)  
-Please look for existing issues and provide as much useful details as you can (e.g. vlc app version, device and Android version).
-
-A template is provided, please use it!
-
-Issues without relevant information will be ignored, we cannot help in this case.
-
-## Support
-
-- For usage support, use the in-app feedback option in the `About` screen
-- Android mailing list: android@videolan.org
-- bugtracker: https://code.videolan.org/videolan/vlc-android/issues
-- IRC: *#videolan* channel on [libera](https://libera.chat/)
-- VideoLAN forum: https://forum.videolan.org/viewforum.php?f=35
+本项目 fork 自 [VideoLAN / vlc-android](https://code.videolan.org/videolan/vlc-android)(GPL-2.0-or-later),在此感谢 VideoLAN 团队。上游的英文说明与完整的 LibVLC 编译文档见[上游仓库](https://code.videolan.org/videolan/vlc-android);本仓库的全部修改同样以 GPL-2.0-or-later 发布。
